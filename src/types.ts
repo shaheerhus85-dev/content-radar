@@ -16,10 +16,14 @@ export interface ContentItem {
   title: string;
   url: string;
   publishedAt?: string;
+  rawSnippet?: string;
   summary: string;
   topic: string;
+  keyTakeaway?: string;
   actionNote: string;
+  status?: 'parsed';
   createdAt?: string;
+  updatedAt?: string;
   isNew?: boolean;
 }
 

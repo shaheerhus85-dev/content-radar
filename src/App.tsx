@@ -7,6 +7,7 @@ import {
   deleteUserSource,
   subscribeToUserSources,
 } from './lib/sourceService';
+import { subscribeToUserItems } from './lib/itemService';
 import Sidebar from './components/Sidebar';
 import StatsGrid from './components/StatsGrid';
 import AnalyticsCharts from './components/AnalyticsCharts';
@@ -73,6 +74,9 @@ export default function App() {
   const [privateLogs, setPrivateLogs] = useState<string[]>([]);
   const [privateSourcesLoading, setPrivateSourcesLoading] = useState(false);
   const [privateSourcesError, setPrivateSourcesError] = useState('');
+  const [privateItemsLoading, setPrivateItemsLoading] = useState(false);
+  const [privateItemsError, setPrivateItemsError] = useState('');
+  const [refreshError, setRefreshError] = useState('');
 
   const [globalSearch, setGlobalSearch] = useState('');
   const [isScanning, setIsScanning] = useState(false);
@@ -116,7 +120,10 @@ export default function App() {
       setPrivateArticles([]);
       setPrivateLogs([]);
       setPrivateSourcesError('');
+      setPrivateItemsError('');
+      setRefreshError('');
       setPrivateSourcesLoading(false);
+      setPrivateItemsLoading(false);
     }
   }, [authLoading, authUser, isPrivateWorkspace]);
 
@@ -153,6 +160,37 @@ export default function App() {
       console.error('Unable to subscribe to private sources.', error);
       setPrivateSourcesError('Unable to connect to saved sources. Check Firebase configuration.');
       setPrivateSourcesLoading(false);
+      return undefined;
+    }
+  }, [authUser, isPrivateWorkspace]);
+
+  useEffect(() => {
+    if (!authUser || !isPrivateWorkspace) {
+      setPrivateItemsLoading(false);
+      return undefined;
+    }
+
+    setPrivateItemsLoading(true);
+    setPrivateItemsError('');
+
+    try {
+      return subscribeToUserItems(
+        authUser.uid,
+        (nextItems) => {
+          setPrivateArticles(nextItems);
+          setPrivateItemsLoading(false);
+        },
+        (error) => {
+          console.error('Unable to load private items.', error);
+          setPrivateArticles([]);
+          setPrivateItemsError('Unable to load saved insights. Check Firebase rules and try again.');
+          setPrivateItemsLoading(false);
+        },
+      );
+    } catch (error) {
+      console.error('Unable to subscribe to private items.', error);
+      setPrivateItemsError('Unable to connect to saved insights. Check Firebase configuration.');
+      setPrivateItemsLoading(false);
       return undefined;
     }
   }, [authUser, isPrivateWorkspace]);
@@ -207,7 +245,10 @@ export default function App() {
     setPrivateArticles([]);
     setPrivateLogs([]);
     setPrivateSourcesError('');
+    setPrivateItemsError('');
+    setRefreshError('');
     setPrivateSourcesLoading(false);
+    setPrivateItemsLoading(false);
     setWorkspaceMode('demo');
     setActiveTab('dashboard');
     setShowProfileDropdown(false);
@@ -269,7 +310,7 @@ export default function App() {
     ]);
   };
 
-  const handleSyncStreams = () => {
+  const handleSyncStreams = async () => {
     if (isScanning) return;
 
     if (sources.length === 0) {
@@ -277,6 +318,67 @@ export default function App() {
         'Add at least one source before refreshing this workspace.',
         ...prev,
       ]);
+      return;
+    }
+
+    if (isPrivateWorkspace) {
+      if (!authUser) {
+        setRefreshError('Sign in before refreshing private sources.');
+        return;
+      }
+
+      setIsScanning(true);
+      setScanProgress(0.15);
+      setRefreshError('');
+      setPrivateLogs((prev) => [
+        'Requesting authenticated source refresh...',
+        ...prev,
+      ]);
+
+      try {
+        const token = await authUser.getIdToken();
+        setScanProgress(0.45);
+
+        const response = await fetch('/api/refresh', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const result = await response.json().catch(() => ({
+          success: false,
+          error: 'Refresh API did not return JSON. Run the app with Vercel dev or deploy to Vercel to execute /api/refresh.',
+        })) as {
+          success?: boolean;
+          error?: string;
+          sourcesChecked?: number;
+          newItems?: number;
+          skippedDuplicates?: number;
+          failedSources?: { sourceName: string; error: string }[];
+        };
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || 'Source refresh failed.');
+        }
+
+        setScanProgress(1);
+        setPrivateLogs((prev) => [
+          `Refresh complete. Checked ${result.sourcesChecked ?? 0} sources, added ${result.newItems ?? 0} new items, skipped ${result.skippedDuplicates ?? 0} duplicates.`,
+          ...(result.failedSources?.length
+            ? [`${result.failedSources.length} sources failed and were skipped.`]
+            : []),
+          ...prev,
+        ]);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to refresh sources.';
+        setRefreshError(message);
+        setPrivateLogs((prev) => [
+          `Refresh failed: ${message}`,
+          ...prev,
+        ]);
+      } finally {
+        setIsScanning(false);
+      }
       return;
     }
 
@@ -331,6 +433,8 @@ export default function App() {
       setPrivateSources([]);
       setPrivateArticles([]);
       setPrivateLogs([]);
+      setPrivateItemsError('');
+      setRefreshError('');
       return;
     }
 
@@ -537,7 +641,7 @@ export default function App() {
                   <span className="text-[10px] font-bold uppercase tracking-wider text-theme-text-secondary">Private Workspace</span>
                   <h2 className="text-lg font-bold text-theme-text-primary mt-1">Your workspace is ready.</h2>
                   <p className="text-xs text-theme-text-secondary mt-1 max-w-2xl">
-                    New authenticated users start with empty sources and items. Firestore profile setup is active; source syncing and AI summaries arrive in the next phases.
+                    New authenticated users start with empty sources and items. Add an RSS feed or sitemap, then refresh sources to fetch parsed updates. AI summaries arrive in a later phase.
                   </p>
                 </div>
               )}
@@ -560,12 +664,28 @@ export default function App() {
                     recentLogs={executionLogs}
                   />
 
+                  {isPrivateWorkspace && (refreshError || privateItemsError || privateItemsLoading) && (
+                    <div className="bg-theme-surface border border-theme-border rounded-xl p-4 shadow-sm text-left">
+                      {privateItemsLoading && (
+                        <p className="text-xs font-semibold text-theme-text-secondary">Loading saved insights...</p>
+                      )}
+                      {refreshError && (
+                        <p className="text-xs font-semibold text-rose-500">{refreshError}</p>
+                      )}
+                      {privateItemsError && (
+                        <p className="text-xs font-semibold text-rose-500">{privateItemsError}</p>
+                      )}
+                    </div>
+                  )}
+
                   <MonitoredSourcesSummary sources={sources} />
 
                   <div className="pt-2">
                     <InsightsTable
                       insights={searchedArticles}
                       onRefreshDemo={handleResetWorkspace}
+                      emptyTitle={isPrivateWorkspace && articles.length === 0 ? 'No insights yet' : undefined}
+                      emptyDescription={isPrivateWorkspace && articles.length === 0 ? 'Refresh your sources to fetch the latest updates.' : undefined}
                     />
                   </div>
                 </div>
@@ -589,6 +709,8 @@ export default function App() {
                   <InsightsTable
                     insights={searchedArticles}
                     onRefreshDemo={handleResetWorkspace}
+                    emptyTitle={isPrivateWorkspace && articles.length === 0 ? 'No insights yet' : undefined}
+                    emptyDescription={isPrivateWorkspace && articles.length === 0 ? 'Refresh your sources to fetch the latest updates.' : undefined}
                   />
                 </div>
               )}

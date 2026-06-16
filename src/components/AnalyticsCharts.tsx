@@ -6,7 +6,7 @@ interface AnalyticsChartsProps {
   articles: ContentItem[];
   isScanning: boolean;
   scanProgress: number;
-  onRefresh: () => void;
+  onRefresh: () => void | Promise<void>;
   recentLogs: string[];
 }
 
@@ -158,7 +158,7 @@ export default function AnalyticsCharts({
               </div>
             ) : (
               <p className="text-[12px] text-theme-text-secondary leading-normal">
-                Everything is quiet. Monitored sources scan automatically. Feel free to trigger an immediate check.
+                Everything is quiet. Trigger an immediate check to collect the latest source updates.
               </p>
             )}
           </div>

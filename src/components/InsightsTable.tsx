@@ -6,9 +6,16 @@ import { Search, Filter, Eye, X, ExternalLink, Calendar, BookOpen, AlertCircle, 
 interface InsightsTableProps {
   insights: ContentItem[];
   onRefreshDemo: () => void;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }
 
-export default function InsightsTable({ insights, onRefreshDemo }: InsightsTableProps) {
+export default function InsightsTable({
+  insights,
+  onRefreshDemo,
+  emptyTitle = 'No matching insights',
+  emptyDescription = 'Try adjusting your search criteria or topic pill settings.',
+}: InsightsTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTopic, setSelectedTopic] = useState<string>('All');
   const [activeArticle, setActiveArticle] = useState<ContentItem | null>(null);
@@ -110,10 +117,10 @@ export default function InsightsTable({ insights, onRefreshDemo }: InsightsTable
         <div className="text-center py-12 border border-dashed border-theme-border rounded-xl max-w-md mx-auto select-none">
           <AlertCircle className="w-8 h-8 text-[#F59E0B] mx-auto mb-3" />
           <h4 className="text-xs font-bold text-theme-text-primary uppercase tracking-wider">
-            No matching insights
+            {emptyTitle}
           </h4>
           <p className="text-xs text-theme-text-secondary mt-1.5 leading-relaxed font-medium">
-            Try adjusting your search criteria or topic pill settings.
+            {emptyDescription}
           </p>
           <button
             onClick={() => {
