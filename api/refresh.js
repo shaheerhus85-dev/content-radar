@@ -1,28 +1,12 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createHash } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
-import { adminAuth, adminDb } from './lib/firebaseAdmin';
-import { parseFeedXml } from './lib/feedParser';
-
-type SourceType = 'rss' | 'sitemap';
-
-interface SourceDocument {
-  name?: string;
-  url?: string;
-  type?: SourceType;
-  status?: 'active' | 'failed';
-}
-
-interface FailedSource {
-  sourceId: string;
-  sourceName: string;
-  error: string;
-}
+import { adminAuth, adminDb } from './lib/firebaseAdmin.js';
+import { parseFeedXml } from './lib/feedParser.js';
 
 const MAX_ITEMS_PER_SOURCE = 10;
 const FETCH_TIMEOUT_MS = 15_000;
 
-const getBearerToken = (authorizationHeader?: string | string[]) => {
+const getBearerToken = (authorizationHeader) => {
   const header = Array.isArray(authorizationHeader)
     ? authorizationHeader[0]
     : authorizationHeader;
@@ -31,10 +15,10 @@ const getBearerToken = (authorizationHeader?: string | string[]) => {
   return header.slice('Bearer '.length).trim();
 };
 
-const hashUrl = (url: string) =>
+const hashUrl = (url) =>
   createHash('sha256').update(url.trim().toLowerCase()).digest('hex');
 
-const fetchXml = async (url: string) => {
+const fetchXml = async (url) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
@@ -57,12 +41,14 @@ const fetchXml = async (url: string) => {
   }
 };
 
-const summarizeRawSnippet = (rawSnippet: string) => {
+const summarizeRawSnippet = (rawSnippet) => {
   if (!rawSnippet) return 'Parsed source update ready for review.';
   return rawSnippet.length > 260 ? `${rawSnippet.slice(0, 257).trim()}...` : rawSnippet;
 };
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req, res) {
+  res.setHeader('Content-Type', 'application/json');
+
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ success: false, error: 'Method not allowed.' });
@@ -86,10 +72,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let newItems = 0;
     let skippedDuplicates = 0;
-    const failedSources: FailedSource[] = [];
+    const failedSources = [];
 
     for (const sourceDoc of sourcesSnapshot.docs) {
-      const source = sourceDoc.data() as SourceDocument;
+      const source = sourceDoc.data();
       const sourceName = source.name || 'Unnamed source';
 
       if (!source.url) {

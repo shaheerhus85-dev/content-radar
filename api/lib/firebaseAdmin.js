@@ -1,8 +1,8 @@
-import { cert, getApps, initializeApp, type ServiceAccount } from 'firebase-admin/app';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
-const getRequiredEnv = (key: string) => {
+const getRequiredEnv = (key) => {
   const value = process.env[key];
   if (!value) {
     throw new Error(`Missing required Firebase Admin environment variable: ${key}`);
@@ -17,7 +17,7 @@ const getAdminApp = () => {
     return existingApp;
   }
 
-  const serviceAccount: ServiceAccount = {
+  const serviceAccount = {
     projectId: getRequiredEnv('FIREBASE_PROJECT_ID'),
     clientEmail: getRequiredEnv('FIREBASE_CLIENT_EMAIL'),
     privateKey: getRequiredEnv('FIREBASE_PRIVATE_KEY').replace(/\\n/g, '\n'),

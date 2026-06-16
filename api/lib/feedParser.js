@@ -1,41 +1,34 @@
 import { XMLParser } from 'fast-xml-parser';
 
-export interface ParsedFeedItem {
-  title: string;
-  url: string;
-  publishedAt: string | null;
-  rawSnippet: string;
-}
-
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: '@_',
   trimValues: true,
 });
 
-const toArray = <T>(value: T | T[] | undefined | null): T[] => {
+const toArray = (value) => {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
 };
 
-const toText = (value: unknown): string => {
+const toText = (value) => {
   if (!value) return '';
   if (typeof value === 'string' || typeof value === 'number') return String(value);
   if (typeof value === 'object' && '#text' in value) {
-    const text = (value as { '#text'?: unknown })['#text'];
+    const text = value['#text'];
     return typeof text === 'string' || typeof text === 'number' ? String(text) : '';
   }
 
   return '';
 };
 
-const stripHtml = (value: string) =>
+const stripHtml = (value) =>
   value
     .replace(/<[^>]*>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
-const getAtomLink = (link: unknown) => {
+const getAtomLink = (link) => {
   if (!link) return '';
   if (typeof link === 'string') return link;
 
@@ -43,18 +36,18 @@ const getAtomLink = (link: unknown) => {
   const alternate = links.find((entry) => (
     typeof entry === 'object'
     && entry !== null
-    && (!('@_rel' in entry) || (entry as { '@_rel'?: string })['@_rel'] === 'alternate')
+    && (!('@_rel' in entry) || entry['@_rel'] === 'alternate')
   ));
   const chosen = alternate || links[0];
 
   if (typeof chosen === 'object' && chosen !== null && '@_href' in chosen) {
-    return String((chosen as { '@_href'?: string })['@_href'] || '');
+    return String(chosen['@_href'] || '');
   }
 
   return toText(chosen);
 };
 
-const titleFromUrl = (url: string) => {
+const titleFromUrl = (url) => {
   try {
     const parsedUrl = new URL(url);
     const pathPart = parsedUrl.pathname.split('/').filter(Boolean).pop();
@@ -69,11 +62,11 @@ const titleFromUrl = (url: string) => {
   }
 };
 
-export const parseFeedXml = (xml: string, maxItems = 10): ParsedFeedItem[] => {
+export const parseFeedXml = (xml, maxItems = 10) => {
   const parsed = parser.parse(xml);
 
   if (parsed?.rss?.channel?.item) {
-    return toArray<Record<string, unknown>>(parsed.rss.channel.item)
+    return toArray(parsed.rss.channel.item)
       .slice(0, maxItems)
       .map((item) => {
         const url = toText(item.link) || toText(item.guid);
@@ -92,7 +85,7 @@ export const parseFeedXml = (xml: string, maxItems = 10): ParsedFeedItem[] => {
   }
 
   if (parsed?.feed?.entry) {
-    return toArray<Record<string, unknown>>(parsed.feed.entry)
+    return toArray(parsed.feed.entry)
       .slice(0, maxItems)
       .map((entry) => {
         const url = getAtomLink(entry.link) || toText(entry.id);
@@ -111,7 +104,7 @@ export const parseFeedXml = (xml: string, maxItems = 10): ParsedFeedItem[] => {
   }
 
   if (parsed?.urlset?.url) {
-    return toArray<Record<string, unknown>>(parsed.urlset.url)
+    return toArray(parsed.urlset.url)
       .slice(0, maxItems)
       .map((entry) => {
         const url = toText(entry.loc);
