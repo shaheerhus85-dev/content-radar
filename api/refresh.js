@@ -66,8 +66,19 @@ export default async function handler(req, res) {
     const firestoreMod = await import('firebase-admin/firestore');
     FieldValue = firestoreMod.FieldValue;
   } catch (err) {
+    if (err?.name === 'MissingFirebaseAdminEnvError' && Array.isArray(err.missing)) {
+      return res.status(500).json({
+        success: false,
+        error: 'Server Firebase Admin configuration is missing.',
+        missing: err.missing,
+      });
+    }
+
     console.error('Firebase Admin import failed.', err);
-    return res.status(500).json({ success: false, error: 'Server Firebase Admin configuration is missing or invalid.' });
+    return res.status(500).json({
+      success: false,
+      error: 'Server Firebase Admin configuration is missing or invalid.',
+    });
   }
 
   try {
