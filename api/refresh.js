@@ -1,6 +1,4 @@
 import { createHash } from 'node:crypto';
-import { FieldValue } from 'firebase-admin/firestore';
-import { adminAuth, adminDb } from './lib/firebaseAdmin.js';
 import { parseFeedXml } from './lib/feedParser.js';
 
 const MAX_ITEMS_PER_SOURCE = 10;
@@ -54,12 +52,25 @@ export default async function handler(req, res) {
     return res.status(405).json({ success: false, error: 'Method not allowed.' });
   }
 
-  try {
-    const token = getBearerToken(req.headers.authorization);
-    if (!token) {
-      return res.status(401).json({ success: false, error: 'Missing Firebase ID token.' });
-    }
+  // Basic auth header check before loading Firebase Admin (lazy import)
+  const token = getBearerToken(req.headers.authorization);
+  if (!token) {
+    return res.status(401).json({ success: false, error: 'Missing Firebase ID token.' });
+  }
 
+  let adminAuth, adminDb, FieldValue;
+  try {
+    const adminMod = await import('./lib/firebaseAdmin.js');
+    adminAuth = adminMod.adminAuth;
+    adminDb = adminMod.adminDb;
+    const firestoreMod = await import('firebase-admin/firestore');
+    FieldValue = firestoreMod.FieldValue;
+  } catch (err) {
+    console.error('Firebase Admin import failed.', err);
+    return res.status(500).json({ success: false, error: 'Server Firebase Admin configuration is missing or invalid.' });
+  }
+
+  try {
     const decodedToken = await adminAuth.verifyIdToken(token);
     const { uid } = decodedToken;
 
