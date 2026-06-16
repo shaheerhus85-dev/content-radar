@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { User, Shield, Sliders, Mail, Sun, Moon, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { useState } from 'react';
+import { User, Sliders, Sun, Moon, RotateCcw, CheckCircle2 } from 'lucide-react';
 
 interface SettingsPanelProps {
   theme: 'light' | 'dark';
@@ -79,7 +79,7 @@ export default function SettingsPanel({
                   onChange={(e) => setEmailDigest(e.target.checked)}
                   className="w-4 h-4 text-theme-text-primary bg-theme-surface-soft border-theme-border rounded focus:ring-0 cursor-pointer accent-slate-800 dark:accent-zinc-200"
                 />
-                <span>Email summaries digest digest</span>
+                <span>Email summary digest</span>
               </label>
 
               <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-theme-text-primary">

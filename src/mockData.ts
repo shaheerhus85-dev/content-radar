@@ -1,4 +1,4 @@
-import { Source, ContentItem, DashboardStats } from './types';
+import { Source, ContentItem } from './types';
 
 export const INITIAL_SOURCES: Source[] = [
   {
@@ -125,12 +125,3 @@ export const INITIAL_ARTICLES: ContentItem[] = [
     createdAt: '2026-06-10T16:40:00Z'
   }
 ];
-
-export const INITIAL_STATS: DashboardStats = {
-  totalSources: 4,
-  itemsScanned: 138,
-  aiSummariesCount: 123,
-  duplicatesSkipped: 32,
-  lastRefresh: 'Just now',
-  sourceHealth: '99%'
-};

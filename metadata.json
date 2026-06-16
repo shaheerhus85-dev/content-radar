@@ -1,6 +1,5 @@
 {
   "name": "Content Radar",
-  "description": "AI-powered content monitoring and RSS automation command center.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "description": "Frontend UI prototype for an RSS and sitemap content monitoring dashboard.",
+  "requestFramePermissions": []
 }

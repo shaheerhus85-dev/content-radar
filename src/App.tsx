@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { INITIAL_SOURCES, INITIAL_ARTICLES, INITIAL_STATS } from './mockData';
+import { useState, useEffect } from 'react';
+import { INITIAL_SOURCES, INITIAL_ARTICLES } from './mockData';
 import { Source, ContentItem } from './types';
 import Sidebar from './components/Sidebar';
 import StatsGrid from './components/StatsGrid';
@@ -14,12 +14,7 @@ import {
   Search,
   Moon,
   Sun,
-  User,
-  LogOut,
   Radio,
-  Settings,
-  HelpCircle,
-  TrendingUp,
 } from 'lucide-react';
 
 export default function App() {
@@ -32,14 +27,14 @@ export default function App() {
     return 'dark';
   });
 
-  // Launch directly into dashboard shell, satisfying recruiter experience bounds
-  const [viewMode, setViewMode] = useState<'landing' | 'dashboard'>('dashboard');
+  // Public visitors land on the showcase first; the dashboard remains one click away.
+  const [viewMode, setViewMode] = useState<'landing' | 'dashboard'>('landing');
 
   // Sidebar tab state
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
   // Authenticated user state placeholder
-  const [user, setUser] = useState<{ name: string; email: string; plan: string } | null>({
+  const [user] = useState<{ name: string; email: string; plan: string } | null>({
     name: 'Shaheer Hussain',
     email: 'shaheerhus85@gmail.com',
     plan: 'Enterprise Partner',

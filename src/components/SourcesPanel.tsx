@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Source } from '../types';
-import { Plus, Trash2, Globe, CheckCircle2, RefreshCw, AlertTriangle, HelpCircle } from 'lucide-react';
+import { Plus, Trash2, Globe } from 'lucide-react';
 
 interface SourcesPanelProps {
   sources: Source[];

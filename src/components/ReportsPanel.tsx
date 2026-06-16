@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FileDown, Layers, Server, ShieldCheck, Mail, CheckCircle, TrendingUp, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { FileDown, TrendingUp } from 'lucide-react';
 
 export default function ReportsPanel() {
   const [isExporting, setIsExporting] = useState<string | null>(null);
@@ -55,7 +55,7 @@ export default function ReportsPanel() {
         <div className="bg-theme-surface border border-theme-border p-5 rounded-xl shadow-sm text-center md:text-left flex flex-col justify-between">
           <div className="space-y-1">
             <span className="text-[10px] uppercase font-bold text-[#12B76A] tracking-wider">Efficiency Gain</span>
-            <th className="text-sm font-bold text-theme-text-primary text-left block">Duplicate Filter Rate</th>
+            <h4 className="text-sm font-bold text-theme-text-primary text-left block">Duplicate Filter Rate</h4>
             <p className="text-xs text-theme-text-secondary leading-normal mt-1">
               Deduplication percentage of redundant news posts skipped on inbound RSS pipelines.
             </p>

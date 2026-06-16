@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sparkles, Radio, Shield, Cpu, Database, Command, Sun, Moon, Zap, Target, Layers, ArrowRight, HelpCircle, Menu, X } from 'lucide-react';
+import { Sparkles, Radio, Shield, Cpu, Database, Command, Sun, Moon, Zap, Target, Layers, Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface LandingPageProps {

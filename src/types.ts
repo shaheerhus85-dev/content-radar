@@ -22,11 +22,3 @@ export interface ContentItem {
   isNew?: boolean;
 }
 
-export interface DashboardStats {
-  totalSources: number;
-  itemsScanned: number;
-  aiSummariesCount: number;
-  duplicatesSkipped: number;
-  lastRefresh: string;
-  sourceHealth: number | string;
-}
