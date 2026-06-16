@@ -4,14 +4,20 @@ import { Plus, Trash2, Globe } from 'lucide-react';
 
 interface SourcesPanelProps {
   sources: Source[];
-  onAddSource: (name: string, url: string, type: 'rss' | 'sitemap') => void;
-  onDeleteSource: (id: string) => void;
+  onAddSource: (name: string, url: string, type: 'rss' | 'sitemap') => Promise<void> | void;
+  onDeleteSource: (id: string) => Promise<void> | void;
+  isLoading?: boolean;
+  errorMessage?: string;
+  workspaceMode: 'demo' | 'private';
 }
 
 export default function SourcesPanel({
   sources,
   onAddSource,
   onDeleteSource,
+  isLoading = false,
+  errorMessage = '',
+  workspaceMode,
 }: SourcesPanelProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState('');
@@ -19,12 +25,19 @@ export default function SourcesPanel({
   const [newType, setNewType] = useState<'rss' | 'sitemap'>('rss');
   const [errMessage, setErrMessage] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrMessage('');
 
-    if (!newName.trim() || !newUrl.trim()) {
-      setErrMessage('Please provide both a source name and stream XML feed URL.');
+    if (!newName.trim()) {
+      setErrMessage('Source name is required.');
+      return;
+    }
+
+    if (!newUrl.trim()) {
+      setErrMessage('URL is required.');
       return;
     }
 
@@ -33,10 +46,18 @@ export default function SourcesPanel({
       return;
     }
 
-    onAddSource(newName.trim(), newUrl.trim(), newType);
-    setNewName('');
-    setNewUrl('');
-    setShowAddForm(false);
+    try {
+      setIsSubmitting(true);
+      await onAddSource(newName.trim(), newUrl.trim(), newType);
+      setNewName('');
+      setNewUrl('');
+      setShowAddForm(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to add source right now.';
+      setErrMessage(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -111,9 +132,10 @@ export default function SourcesPanel({
               <button
                 type="submit"
                 id="submit-add-source-btn"
-                className="px-4 py-2 bg-theme-accent text-theme-accent-fg hover:opacity-90 font-bold text-xs rounded-xl"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-theme-accent text-theme-accent-fg hover:opacity-90 disabled:opacity-50 font-bold text-xs rounded-xl"
               >
-                Launch Monitoring
+                {isSubmitting ? 'Saving Source...' : 'Launch Monitoring'}
               </button>
               <button
                 type="button"
@@ -130,6 +152,11 @@ export default function SourcesPanel({
 
       {/* Sources compact list table */}
       <div id="sources-list-table-container" className="bg-theme-surface border border-theme-border rounded-xl shadow-sm overflow-hidden text-left">
+        {errorMessage && (
+          <div className="border-b border-theme-border bg-rose-500/10 px-5 py-3 text-xs font-semibold text-rose-500">
+            {errorMessage}
+          </div>
+        )}
         <table id="sources-management-dashboard-grid" className="w-full text-xs text-left border-collapse select-none">
           <thead>
             <tr className="bg-theme-surface-soft text-theme-text-secondary border-b border-theme-border font-bold text-[11px] uppercase tracking-wide">
@@ -142,10 +169,17 @@ export default function SourcesPanel({
             </tr>
           </thead>
           <tbody className="divide-y divide-theme-border text-theme-text-primary">
-            {sources.length === 0 ? (
+            {isLoading ? (
               <tr>
                 <td colSpan={6} className="px-5 py-8 text-center text-theme-text-secondary">
-                  No sources yet. Add a source when you are ready to configure this workspace.
+                  Loading saved sources...
+                </td>
+              </tr>
+            ) : sources.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-8 text-center text-theme-text-secondary">
+                  <span className="block font-bold text-theme-text-primary">No sources added yet</span>
+                  <span className="block mt-1">Add your first RSS feed or sitemap to start monitoring.</span>
                 </td>
               </tr>
             ) : sources.map((src) => {
@@ -202,7 +236,7 @@ export default function SourcesPanel({
 
                   {/* Last checked time */}
                   <td className="px-5 py-4 whitespace-nowrap text-theme-text-secondary font-medium">
-                    {src.lastFetchedAt || '12 mins ago'}
+                    {src.lastFetchedAt || (workspaceMode === 'private' ? 'Not fetched yet' : '12 mins ago')}
                   </td>
 
                   {/* Delete button option */}

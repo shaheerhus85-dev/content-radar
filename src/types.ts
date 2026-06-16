@@ -3,8 +3,9 @@ export interface Source {
   name: string;
   url: string;
   type: 'rss' | 'sitemap';
-  createdAt?: string;
-  lastFetchedAt?: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  lastFetchedAt?: string | null;
   status: 'active' | 'failed';
 }
 

@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { INITIAL_SOURCES, INITIAL_ARTICLES } from './mockData';
 import { Source, ContentItem } from './types';
 import { useAuth } from './auth/AuthContext';
+import {
+  addUserSource,
+  deleteUserSource,
+  subscribeToUserSources,
+} from './lib/sourceService';
 import Sidebar from './components/Sidebar';
 import StatsGrid from './components/StatsGrid';
 import AnalyticsCharts from './components/AnalyticsCharts';
@@ -45,8 +50,12 @@ export default function App() {
     return 'dark';
   });
 
-  const [viewMode, setViewMode] = useState<ViewMode>('landing');
-  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('demo');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => (
+    localStorage.getItem('content-radar-workspace-mode') === 'private' ? 'dashboard' : 'landing'
+  ));
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(() => (
+    localStorage.getItem('content-radar-workspace-mode') === 'private' ? 'private' : 'demo'
+  ));
   const [authModalMode, setAuthModalMode] = useState<AuthMode | null>(null);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
@@ -62,6 +71,8 @@ export default function App() {
   const [privateSources, setPrivateSources] = useState<Source[]>([]);
   const [privateArticles, setPrivateArticles] = useState<ContentItem[]>([]);
   const [privateLogs, setPrivateLogs] = useState<string[]>([]);
+  const [privateSourcesLoading, setPrivateSourcesLoading] = useState(false);
+  const [privateSourcesError, setPrivateSourcesError] = useState('');
 
   const [globalSearch, setGlobalSearch] = useState('');
   const [isScanning, setIsScanning] = useState(false);
@@ -97,11 +108,54 @@ export default function App() {
 
   useEffect(() => {
     if (!authLoading && !authUser && isPrivateWorkspace) {
+      localStorage.setItem('content-radar-workspace-mode', 'demo');
       setWorkspaceMode('demo');
       setViewMode('landing');
       setShowProfileDropdown(false);
+      setPrivateSources([]);
+      setPrivateArticles([]);
+      setPrivateLogs([]);
+      setPrivateSourcesError('');
+      setPrivateSourcesLoading(false);
     }
   }, [authLoading, authUser, isPrivateWorkspace]);
+
+  useEffect(() => {
+    if (!authLoading && authUser && workspaceMode === 'private') {
+      setViewMode('dashboard');
+    }
+  }, [authLoading, authUser, workspaceMode]);
+
+  useEffect(() => {
+    if (!authUser || !isPrivateWorkspace) {
+      setPrivateSourcesLoading(false);
+      return undefined;
+    }
+
+    setPrivateSourcesLoading(true);
+    setPrivateSourcesError('');
+
+    try {
+      return subscribeToUserSources(
+        authUser.uid,
+        (nextSources) => {
+          setPrivateSources(nextSources);
+          setPrivateSourcesLoading(false);
+        },
+        (error) => {
+          console.error('Unable to load private sources.', error);
+          setPrivateSources([]);
+          setPrivateSourcesError('Unable to load saved sources. Check Firebase rules and try again.');
+          setPrivateSourcesLoading(false);
+        },
+      );
+    } catch (error) {
+      console.error('Unable to subscribe to private sources.', error);
+      setPrivateSourcesError('Unable to connect to saved sources. Check Firebase configuration.');
+      setPrivateSourcesLoading(false);
+      return undefined;
+    }
+  }, [authUser, isPrivateWorkspace]);
 
   const updateSources = (updater: (current: Source[]) => Source[]) => {
     if (isPrivateWorkspace) {
@@ -128,6 +182,7 @@ export default function App() {
   };
 
   const handleOpenDemo = () => {
+    localStorage.setItem('content-radar-workspace-mode', 'demo');
     setWorkspaceMode('demo');
     setActiveTab('dashboard');
     setViewMode('dashboard');
@@ -139,6 +194,7 @@ export default function App() {
 
   const handleAuthSuccess = () => {
     setAuthModalMode(null);
+    localStorage.setItem('content-radar-workspace-mode', 'private');
     setWorkspaceMode('private');
     setActiveTab('dashboard');
     setViewMode('dashboard');
@@ -146,13 +202,32 @@ export default function App() {
 
   const handleSignOut = async () => {
     await signOut();
+    localStorage.setItem('content-radar-workspace-mode', 'demo');
+    setPrivateSources([]);
+    setPrivateArticles([]);
+    setPrivateLogs([]);
+    setPrivateSourcesError('');
+    setPrivateSourcesLoading(false);
     setWorkspaceMode('demo');
     setActiveTab('dashboard');
     setShowProfileDropdown(false);
     setViewMode('landing');
   };
 
-  const handleAddSource = (name: string, url: string, type: 'rss' | 'sitemap') => {
+  const handleAddSource = async (name: string, url: string, type: 'rss' | 'sitemap') => {
+    if (isPrivateWorkspace) {
+      if (!authUser) {
+        throw new Error('Sign in before adding private sources.');
+      }
+
+      await addUserSource(authUser.uid, { name, url, type });
+      setPrivateLogs((prev) => [
+        `Added new source: "${name}" stream...`,
+        ...prev,
+      ]);
+      return;
+    }
+
     const newSource: Source = {
       id: `src-${Date.now()}`,
       name,
@@ -170,9 +245,23 @@ export default function App() {
     ]);
   };
 
-  const handleDeleteSource = (id: string) => {
+  const handleDeleteSource = async (id: string) => {
     const sourceToDelete = sources.find((source) => source.id === id);
     const sourceName = sourceToDelete ? sourceToDelete.name : 'Unknown Feed';
+
+    if (isPrivateWorkspace) {
+      if (!authUser) {
+        throw new Error('Sign in before deleting private sources.');
+      }
+
+      await deleteUserSource(authUser.uid, id);
+      setPrivateLogs((prev) => [
+        `Disconnected source stream: "${sourceName}"`,
+        ...prev,
+      ]);
+      return;
+    }
+
     updateSources((prev) => prev.filter((source) => source.id !== id));
     updateLogs((prev) => [
       `Disconnected source stream: "${sourceName}"`,
@@ -488,6 +577,9 @@ export default function App() {
                     sources={sources}
                     onAddSource={handleAddSource}
                     onDeleteSource={handleDeleteSource}
+                    isLoading={isPrivateWorkspace && privateSourcesLoading}
+                    errorMessage={isPrivateWorkspace ? privateSourcesError : ''}
+                    workspaceMode={workspaceMode}
                   />
                 </div>
               )}
