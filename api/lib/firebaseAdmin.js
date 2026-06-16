@@ -1,6 +1,6 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue as FirestoreFieldValue } from 'firebase-admin/firestore';
 
 class MissingFirebaseAdminEnvError extends Error {
   constructor(missing) {
@@ -9,15 +9,6 @@ class MissingFirebaseAdminEnvError extends Error {
     this.missing = missing;
   }
 }
-
-const getRequiredEnv = (key) => {
-  const value = process.env[key];
-  if (!value) {
-    throw new MissingFirebaseAdminEnvError([key]);
-  }
-
-  return value;
-};
 
 const normalizePrivateKey = (rawKey) => {
   let key = String(rawKey).trim();
@@ -29,28 +20,39 @@ const normalizePrivateKey = (rawKey) => {
   return key.replace(/\\n/g, '\n');
 };
 
+const getServiceAccount = () => {
+  const missing = [];
+  const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
+  const rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY;
+  const privateKey = rawPrivateKey ? normalizePrivateKey(rawPrivateKey) : '';
+
+  if (!projectId) missing.push('FIREBASE_PROJECT_ID');
+  if (!clientEmail) missing.push('FIREBASE_CLIENT_EMAIL');
+  if (!privateKey) missing.push('FIREBASE_PRIVATE_KEY');
+
+  if (missing.length) {
+    throw new MissingFirebaseAdminEnvError(missing);
+  }
+
+  return {
+    projectId,
+    clientEmail,
+    privateKey,
+  };
+};
+
 const getAdminApp = () => {
   const existingApp = getApps()[0];
   if (existingApp) {
     return existingApp;
   }
 
-  const serviceAccount = {
-    projectId: getRequiredEnv('FIREBASE_PROJECT_ID'),
-    clientEmail: getRequiredEnv('FIREBASE_CLIENT_EMAIL'),
-    privateKey: normalizePrivateKey(getRequiredEnv('FIREBASE_PRIVATE_KEY')),
-  };
-
-  if (!serviceAccount.privateKey) {
-    throw new MissingFirebaseAdminEnvError(['FIREBASE_PRIVATE_KEY']);
-  }
-
   return initializeApp({
-    credential: cert(serviceAccount),
+    credential: cert(getServiceAccount()),
   });
 };
 
-const adminApp = getAdminApp();
-
-export const adminAuth = getAuth(adminApp);
-export const adminDb = getFirestore(adminApp);
+export const getAdminAuth = () => getAuth(getAdminApp());
+export const getAdminDb = () => getFirestore(getAdminApp());
+export const FieldValue = FirestoreFieldValue;

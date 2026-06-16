@@ -61,10 +61,9 @@ export default async function handler(req, res) {
   let adminAuth, adminDb, FieldValue;
   try {
     const adminMod = await import('./lib/firebaseAdmin.js');
-    adminAuth = adminMod.adminAuth;
-    adminDb = adminMod.adminDb;
-    const firestoreMod = await import('firebase-admin/firestore');
-    FieldValue = firestoreMod.FieldValue;
+    adminAuth = adminMod.getAdminAuth();
+    adminDb = adminMod.getAdminDb();
+    FieldValue = adminMod.FieldValue;
   } catch (err) {
     if (err?.name === 'MissingFirebaseAdminEnvError' && Array.isArray(err.missing)) {
       return res.status(500).json({
