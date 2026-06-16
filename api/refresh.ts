@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createHash } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
-import { adminAuth, adminDb } from './_lib/firebaseAdmin';
-import { parseFeedXml } from './_lib/feedParser';
+import { adminAuth, adminDb } from './lib/firebaseAdmin';
+import { parseFeedXml } from './lib/feedParser';
 
 type SourceType = 'rss' | 'sitemap';
 
