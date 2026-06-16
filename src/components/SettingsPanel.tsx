@@ -6,6 +6,7 @@ interface SettingsPanelProps {
   onToggleTheme: () => void;
   user: { name: string; email: string; plan: string } | null;
   onResetDemo: () => void;
+  workspaceMode: 'demo' | 'private';
 }
 
 export default function SettingsPanel({
@@ -13,6 +14,7 @@ export default function SettingsPanel({
   onToggleTheme,
   user,
   onResetDemo,
+  workspaceMode,
 }: SettingsPanelProps) {
   const [crawlLimit, setCrawlLimit] = useState(15);
   const [emailDigest, setEmailDigest] = useState(true);
@@ -138,7 +140,9 @@ export default function SettingsPanel({
             <div className="space-y-2 pt-4 border-t border-theme-border">
               <h4 className="text-[11px] font-bold text-theme-text-secondary uppercase">Backup & Reset options</h4>
               <p className="text-[11px] text-theme-text-secondary leading-normal">
-                Reset system cache and reload the clean demo feeds and insights list.
+                {workspaceMode === 'demo'
+                  ? 'Reset system cache and reload the clean demo feeds and insights list.'
+                  : 'Clear the temporary local state for this private workspace preview.'}
               </p>
               <button
                 id="reset-demo-database-btn"
@@ -148,7 +152,7 @@ export default function SettingsPanel({
                 }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-theme-border bg-theme-surface-soft hover:bg-theme-border/45 text-theme-text-primary hover:text-rose-500 text-[11px] font-bold rounded-xl cursor-pointer transition-colors"
               >
-                <RotateCcw className="w-3.5 h-3.5" /> Restore Defaults Demo
+                <RotateCcw className="w-3.5 h-3.5" /> {workspaceMode === 'demo' ? 'Restore Defaults Demo' : 'Clear Workspace Preview'}
               </button>
             </div>
           </div>

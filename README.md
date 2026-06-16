@@ -42,12 +42,19 @@ Teams that follow many blogs, release feeds, and public content sources often re
 
 ## Current Status
 
-This repository currently contains a frontend UI prototype only.
+This repository currently contains a Vite React frontend with a Firebase client authentication and Firestore profile foundation.
+
+Implemented foundation:
+
+- Public landing page and public demo dashboard
+- Firebase client SDK setup
+- Email/password auth UI foundation
+- Authenticated private workspace shell
+- Firestore user profile document creation at `users/{uid}`
 
 The following are intentionally not implemented yet:
 
 - Backend API
-- Firebase Authentication
 - Firestore persistence
 - RSS or sitemap fetching
 - AI-generated summaries
@@ -91,19 +98,38 @@ npm run preview
 
 ## Environment Variables
 
-`.env.example` documents planned environment variables for later phases.
+`.env.example` documents Firebase client variables and planned later-phase variables.
 
-Current prototype behavior does not require environment variables to run locally.
+The public landing page and demo dashboard can run without Firebase variables. Sign-in and sign-up require Firebase client configuration.
 
-Planned variables:
+Firebase client variables:
+
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_APP_ID`
+- `VITE_FIREBASE_MEASUREMENT_ID`
+
+Planned later-phase variables:
 
 - `GEMINI_API_KEY` - future server-side summarization key
 - `APP_URL` - future deployment URL for callbacks, links, and API configuration
 
+## Firebase Security Rules
+
+`firestore.rules` is included as a reference for the private workspace data model:
+
+- `users/{uid}`
+- `users/{uid}/sources/{sourceId}`
+- `users/{uid}/items/{itemId}`
+
+Apply these rules manually in the Firebase Console before using Firestore with real users. The rules allow each signed-in user to read and write only their own profile, sources, and items. User profile deletion is disabled.
+
 ## Future Improvements
 
 - Add a backend ingestion service
-- Add Firebase Authentication
 - Persist sources and insights in Firestore
 - Fetch and parse RSS feeds and sitemap XML
 - Add duplicate detection against real content

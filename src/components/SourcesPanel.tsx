@@ -142,7 +142,13 @@ export default function SourcesPanel({
             </tr>
           </thead>
           <tbody className="divide-y divide-theme-border text-theme-text-primary">
-            {sources.map((src) => {
+            {sources.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-8 text-center text-theme-text-secondary">
+                  No sources yet. Add a source when you are ready to configure this workspace.
+                </td>
+              </tr>
+            ) : sources.map((src) => {
               // Simulated parsed items weight
               const simulatedCount = src.name.includes('Google')
                 ? 42

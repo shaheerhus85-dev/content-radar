@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { INITIAL_SOURCES, INITIAL_ARTICLES } from './mockData';
 import { Source, ContentItem } from './types';
+import { useAuth } from './auth/AuthContext';
 import Sidebar from './components/Sidebar';
 import StatsGrid from './components/StatsGrid';
 import AnalyticsCharts from './components/AnalyticsCharts';
@@ -10,6 +11,7 @@ import ReportsPanel from './components/ReportsPanel';
 import SettingsPanel from './components/SettingsPanel';
 import LandingPage from './components/LandingPage';
 import MonitoredSourcesSummary from './components/MonitoredSourcesSummary';
+import AuthModal from './components/AuthModal';
 import {
   Search,
   Moon,
@@ -17,8 +19,24 @@ import {
   Radio,
 } from 'lucide-react';
 
+type ViewMode = 'landing' | 'dashboard';
+type WorkspaceMode = 'demo' | 'private';
+type AuthMode = 'signin' | 'signup';
+
+const demoUser = {
+  name: 'Demo Visitor',
+  email: 'preview@content-radar.local',
+  plan: 'Public Demo',
+};
+
 export default function App() {
-  // Theme state: defaults to dark mode
+  const {
+    user: authUser,
+    loading: authLoading,
+    firebaseReady,
+    signOut,
+  } = useAuth();
+
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme');
     if (saved === 'light' || saved === 'dark') {
@@ -27,35 +45,46 @@ export default function App() {
     return 'dark';
   });
 
-  // Public visitors land on the showcase first; the dashboard remains one click away.
-  const [viewMode, setViewMode] = useState<'landing' | 'dashboard'>('landing');
-
-  // Sidebar tab state
+  const [viewMode, setViewMode] = useState<ViewMode>('landing');
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('demo');
+  const [authModalMode, setAuthModalMode] = useState<AuthMode | null>(null);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
-
-  // Authenticated user state placeholder
-  const [user] = useState<{ name: string; email: string; plan: string } | null>({
-    name: 'Shaheer Hussain',
-    email: 'shaheerhus85@gmail.com',
-    plan: 'Enterprise Partner',
-  });
-
-  // Client states
-  const [sources, setSources] = useState<Source[]>(INITIAL_SOURCES);
-  const [articles, setArticles] = useState<ContentItem[]>(INITIAL_ARTICLES);
-  const [globalSearch, setGlobalSearch] = useState('');
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
 
-  // Scanner Simulator states
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
-  const [executionLogs, setExecutionLogs] = useState<string[]>([
+  const [demoSources, setDemoSources] = useState<Source[]>(INITIAL_SOURCES);
+  const [demoArticles, setDemoArticles] = useState<ContentItem[]>(INITIAL_ARTICLES);
+  const [demoLogs, setDemoLogs] = useState<string[]>([
     'Checked OpenAI News feed...',
     'Index verification complete: Vercel Blog sitemap...',
     'Scan cycle stable. Monitoring 4 active sources.',
   ]);
 
-  // Synchronize layout theme with HTML element
+  const [privateSources, setPrivateSources] = useState<Source[]>([]);
+  const [privateArticles, setPrivateArticles] = useState<ContentItem[]>([]);
+  const [privateLogs, setPrivateLogs] = useState<string[]>([]);
+
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+
+  const isPrivateWorkspace = workspaceMode === 'private';
+  const sources = isPrivateWorkspace ? privateSources : demoSources;
+  const articles = isPrivateWorkspace ? privateArticles : demoArticles;
+  const executionLogs = isPrivateWorkspace ? privateLogs : demoLogs;
+
+  const user = useMemo(() => {
+    if (isPrivateWorkspace && authUser) {
+      const fallbackName = authUser.email?.split('@')[0] || 'Private User';
+      return {
+        name: authUser.displayName || fallbackName,
+        email: authUser.email || '',
+        plan: 'Private Workspace',
+      };
+    }
+
+    return demoUser;
+  }, [authUser, isPrivateWorkspace]);
+
   useEffect(() => {
     const root = window.document.documentElement;
     if (theme === 'dark') {
@@ -66,7 +95,63 @@ export default function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Handle addition of a new source
+  useEffect(() => {
+    if (!authLoading && !authUser && isPrivateWorkspace) {
+      setWorkspaceMode('demo');
+      setViewMode('landing');
+      setShowProfileDropdown(false);
+    }
+  }, [authLoading, authUser, isPrivateWorkspace]);
+
+  const updateSources = (updater: (current: Source[]) => Source[]) => {
+    if (isPrivateWorkspace) {
+      setPrivateSources(updater);
+      return;
+    }
+    setDemoSources(updater);
+  };
+
+  const updateArticles = (updater: (current: ContentItem[]) => ContentItem[]) => {
+    if (isPrivateWorkspace) {
+      setPrivateArticles(updater);
+      return;
+    }
+    setDemoArticles(updater);
+  };
+
+  const updateLogs = (updater: (current: string[]) => string[]) => {
+    if (isPrivateWorkspace) {
+      setPrivateLogs(updater);
+      return;
+    }
+    setDemoLogs(updater);
+  };
+
+  const handleOpenDemo = () => {
+    setWorkspaceMode('demo');
+    setActiveTab('dashboard');
+    setViewMode('dashboard');
+  };
+
+  const handleOpenAuth = (mode: AuthMode) => {
+    setAuthModalMode(mode);
+  };
+
+  const handleAuthSuccess = () => {
+    setAuthModalMode(null);
+    setWorkspaceMode('private');
+    setActiveTab('dashboard');
+    setViewMode('dashboard');
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    setWorkspaceMode('demo');
+    setActiveTab('dashboard');
+    setShowProfileDropdown(false);
+    setViewMode('landing');
+  };
+
   const handleAddSource = (name: string, url: string, type: 'rss' | 'sitemap') => {
     const newSource: Source = {
       id: `src-${Date.now()}`,
@@ -75,29 +160,36 @@ export default function App() {
       type,
       status: 'active',
       createdAt: new Date().toLocaleDateString(),
-      lastFetchedAt: 'Just now',
+      lastFetchedAt: isPrivateWorkspace ? 'Not checked yet' : 'Just now',
     };
-    setSources((prev) => [newSource, ...prev]);
-    setExecutionLogs((prev) => [
+
+    updateSources((prev) => [newSource, ...prev]);
+    updateLogs((prev) => [
       `Added new source: "${name}" stream...`,
       ...prev,
     ]);
   };
 
-  // Handle deletion of a source
   const handleDeleteSource = (id: string) => {
-    const sourceToDelete = sources.find((s) => s.id === id);
+    const sourceToDelete = sources.find((source) => source.id === id);
     const sourceName = sourceToDelete ? sourceToDelete.name : 'Unknown Feed';
-    setSources((prev) => prev.filter((s) => s.id !== id));
-    setExecutionLogs((prev) => [
+    updateSources((prev) => prev.filter((source) => source.id !== id));
+    updateLogs((prev) => [
       `Disconnected source stream: "${sourceName}"`,
       ...prev,
     ]);
   };
 
-  // Simulated content refresh flow (clears AI and developer-heavy labels, provides human steps)
   const handleSyncStreams = () => {
-    if (isScanning || sources.length === 0) return;
+    if (isScanning) return;
+
+    if (sources.length === 0) {
+      updateLogs((prev) => [
+        'Add at least one source before refreshing this workspace.',
+        ...prev,
+      ]);
+      return;
+    }
 
     setIsScanning(true);
     setScanProgress(0);
@@ -114,106 +206,118 @@ export default function App() {
       if (stepIndex < checkSteps.length) {
         const step = checkSteps[stepIndex];
         setScanProgress(step.progress);
-        setExecutionLogs((prev) => [step.log, ...prev]);
+        updateLogs((prev) => [step.log, ...prev]);
         stepIndex++;
       } else {
         clearInterval(interval);
 
-        // Inject simulated article for recruiters to see
         const simArticle: ContentItem = {
           id: `art-sim-${Date.now()}`,
           sourceId: sources[0]?.id || 'src-1',
-          sourceName: sources[0]?.name || 'Google Search Central Blog',
-          title: 'Optimizing Recruiter Screening loops through AI Context Mapping',
-          url: 'https://developers.google.com/search/blog/recruiter-optimization',
+          sourceName: sources[0]?.name || 'Content Radar Source',
+          title: isPrivateWorkspace
+            ? 'Private workspace source refresh placeholder'
+            : 'Optimizing Recruiter Screening loops through AI Context Mapping',
+          url: sources[0]?.url || 'https://example.com',
           publishedAt: 'Just now',
-          summary: 'A streamlined guide on how automation tools can parse candidate CV nodes and map relevant skills into clear summaries. Reduces initial screening cycles by 40%.',
-          topic: 'Automation',
-          actionNote: 'Implement talent context rules to serve pre-screened summary dossiers.',
+          summary: isPrivateWorkspace
+            ? 'This placeholder confirms the private workspace state is isolated from the public demo data. Real RSS ingestion will be implemented in a later phase.'
+            : 'A streamlined guide on how automation tools can parse candidate CV nodes and map relevant skills into clear summaries. Reduces initial screening cycles by 40%.',
+          topic: isPrivateWorkspace ? 'Product' : 'Automation',
+          actionNote: isPrivateWorkspace
+            ? 'Connect the upcoming ingestion worker before using this as production content.'
+            : 'Implement talent context rules to serve pre-screened summary dossiers.',
           createdAt: new Date().toISOString(),
           isNew: true,
         };
 
-        setArticles((prev) => [simArticle, ...prev]);
+        updateArticles((prev) => [simArticle, ...prev]);
         setIsScanning(false);
       }
     }, 650);
   };
 
-  const handleResetToDemo = () => {
-    setSources(INITIAL_SOURCES);
-    setArticles(INITIAL_ARTICLES);
-    setExecutionLogs([
+  const handleResetWorkspace = () => {
+    if (isPrivateWorkspace) {
+      setPrivateSources([]);
+      setPrivateArticles([]);
+      setPrivateLogs([]);
+      return;
+    }
+
+    setDemoSources(INITIAL_SOURCES);
+    setDemoArticles(INITIAL_ARTICLES);
+    setDemoLogs([
       'Reloaded default demo sources...',
       'Index verified for all initial feeds.',
     ]);
   };
 
-  // Local filter search computed on articles representation
-  const searchedArticles = articles.filter((art) => {
+  const searchedArticles = articles.filter((article) => {
     if (!globalSearch.trim()) return true;
     return (
-      art.title.toLowerCase().includes(globalSearch.toLowerCase()) ||
-      art.sourceName.toLowerCase().includes(globalSearch.toLowerCase()) ||
-      art.topic.toLowerCase().includes(globalSearch.toLowerCase())
+      article.title.toLowerCase().includes(globalSearch.toLowerCase()) ||
+      article.sourceName.toLowerCase().includes(globalSearch.toLowerCase()) ||
+      article.topic.toLowerCase().includes(globalSearch.toLowerCase())
     );
   });
 
+  const dashboardCounts = {
+    articles: isPrivateWorkspace ? articles.length : articles.length + 131,
+    duplicates: isPrivateWorkspace ? 0 : 32,
+    insights: isPrivateWorkspace ? articles.length : 121,
+  };
+
   return (
     <div className="min-h-screen bg-theme-bg text-theme-text-primary flex flex-col font-sans antialiased overflow-x-hidden relative transition-colors duration-200">
-      
-      {/* 1. VIEW CONDITIONAL CONTAINER */}
-      
-      {/* LANDING PAGE TOUR VIEW */}
       {viewMode === 'landing' && (
         <LandingPage
-          onLaunchDashboard={() => setViewMode('dashboard')}
-          onNavigateToAuth={(mode) => setViewMode('dashboard')} // Send straight to dashboard for fast access
+          onLaunchDashboard={handleOpenDemo}
+          onNavigateToAuth={handleOpenAuth}
           theme={theme}
           onToggleTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
         />
       )}
 
-      {/* DASHBOARD APPLICATION VIEW */}
       {viewMode === 'dashboard' && (
         <div id="dashboard-app-container" className="flex h-screen relative overflow-hidden bg-theme-bg">
-          
-          {/* Left Sidebar Fixed (240px) */}
           <Sidebar
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             user={user}
             sourcesCount={sources.length}
+            workspaceMode={workspaceMode}
           />
 
-          {/* Right Main Panel Container */}
           <div className="flex-1 flex flex-col min-h-screen relative overflow-hidden max-w-full">
-            
-            {/* Topbar navigation menu */}
             <header
               id="dashboard-topbar"
               className="h-16 border-b border-theme-border bg-theme-surface px-6 flex items-center justify-between shrink-0 z-30 select-none"
             >
               <div className="flex items-center gap-3">
-                {/* Mobile visible branding icon */}
                 <div className="md:hidden bg-theme-accent text-theme-accent-fg p-1.5 rounded-lg mr-1 shadow">
                   <Radio className="w-4 h-4" />
                 </div>
                 <div>
-                  <h1 className="text-base font-bold tracking-tight text-theme-text-primary uppercase font-sans">
-                    {activeTab === 'dashboard' && 'Dashboard'}
-                    {activeTab === 'sources' && 'Sources'}
-                    {activeTab === 'insights' && 'Insights'}
-                    {activeTab === 'reports' && 'Reports'}
-                    {activeTab === 'settings' && 'Settings'}
-                  </h1>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-base font-bold tracking-tight text-theme-text-primary uppercase font-sans">
+                      {activeTab === 'dashboard' && 'Dashboard'}
+                      {activeTab === 'sources' && 'Sources'}
+                      {activeTab === 'insights' && 'Insights'}
+                      {activeTab === 'reports' && 'Reports'}
+                      {activeTab === 'settings' && 'Settings'}
+                    </h1>
+                    <span className="hidden sm:inline-flex rounded-full border border-theme-border bg-theme-surface-soft px-2 py-0.5 text-[10px] font-bold uppercase text-theme-text-secondary">
+                      {isPrivateWorkspace ? 'Private Workspace' : 'Demo Preview'}
+                    </span>
+                  </div>
+                  {authLoading && (
+                    <p className="text-[10px] text-theme-text-secondary mt-0.5">Checking auth session...</p>
+                  )}
                 </div>
               </div>
 
-              {/* Actions & Utilities */}
               <div className="flex items-center gap-4">
-                
-                {/* Global Search Bar (Filters insights in real time) */}
                 <div className="relative hidden sm:block">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-text-secondary animate-pulse" />
                   <input
@@ -221,12 +325,11 @@ export default function App() {
                     type="text"
                     placeholder="Search radar..."
                     value={globalSearch}
-                    onChange={(e) => setGlobalSearch(e.target.value)}
+                    onChange={(event) => setGlobalSearch(event.target.value)}
                     className="h-9 w-[170px] bg-theme-surface-soft border border-theme-border text-theme-text-primary rounded-xl px-3 pl-9 text-xs focus:border-theme-text-primary/30 outline-none transition-all placeholder-theme-text-secondary"
                   />
                 </div>
 
-                {/* Compact Date range dropdown: Default Last 7 Days */}
                 <div className="relative hidden md:block">
                   <select
                     id="topbar-date-range"
@@ -238,7 +341,6 @@ export default function App() {
                   </select>
                 </div>
 
-                {/* Back to landing page toggle styled as a solid 36px action button */}
                 <button
                   id="navbar-showcase-tour-btn"
                   onClick={() => setViewMode('landing')}
@@ -247,7 +349,16 @@ export default function App() {
                   Showcase Tour
                 </button>
 
-                {/* Theme toggle switcher - exact 36px */}
+                {!isPrivateWorkspace && (
+                  <button
+                    id="dashboard-signin-btn"
+                    onClick={() => handleOpenAuth('signin')}
+                    className="hidden md:flex h-9 px-3.5 border border-theme-border hover:bg-theme-surface-soft text-theme-text-secondary hover:text-theme-text-primary rounded-xl transition-all text-xs font-bold items-center justify-center cursor-pointer"
+                  >
+                    Sign in
+                  </button>
+                )}
+
                 <button
                   id="topbar-theme-toggler"
                   onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
@@ -257,7 +368,6 @@ export default function App() {
                   {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
                 </button>
 
-                {/* User avatar profile bubble - exact 36px */}
                 <div className="relative">
                   <button
                     id="user-profile-dropdown-btn"
@@ -265,7 +375,7 @@ export default function App() {
                     className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-xl bg-theme-accent text-theme-accent-fg flex items-center justify-center hover:opacity-90 transition-opacity shadow select-none cursor-pointer"
                   >
                     <span className="text-xs font-bold leading-none">
-                      {user ? user.name[0] : 'D'}
+                      {user.name[0]}
                     </span>
                   </button>
 
@@ -275,14 +385,19 @@ export default function App() {
                       className="absolute right-0 mt-3 w-56 bg-theme-surface border border-theme-border rounded-xl shadow-lg p-3 z-50 text-left text-theme-text-primary animate-fade-in-quick"
                     >
                       <div className="pb-2 border-b border-theme-border">
-                        <span className="font-bold text-xs block truncate">{user?.name}</span>
-                        <span className="text-[10px] text-theme-text-secondary block truncate mt-0.5">{user?.email}</span>
+                        <span className="font-bold text-xs block truncate">{user.name}</span>
+                        <span className="text-[10px] text-theme-text-secondary block truncate mt-0.5">{user.email}</span>
                       </div>
                       <div className="py-2 space-y-1 text-xs">
                         <div className="flex justify-between p-1.5 bg-theme-surface-soft rounded-lg text-[10px] font-bold">
-                          <span className="text-theme-text-secondary">Tier:</span>
-                          <span className="text-theme-text-primary font-bold uppercase">{user?.plan}</span>
+                          <span className="text-theme-text-secondary">Mode:</span>
+                          <span className="text-theme-text-primary font-bold uppercase">{user.plan}</span>
                         </div>
+                        {!firebaseReady && (
+                          <div className="p-1.5 bg-amber-500/10 text-amber-700 dark:text-amber-300 rounded-lg text-[10px] font-semibold">
+                            Firebase env values are not configured.
+                          </div>
+                        )}
                         <button
                           id="btn-settings-redirect"
                           onClick={() => {
@@ -298,22 +413,24 @@ export default function App() {
                         <button
                           id="btn-profile-signout"
                           onClick={() => {
+                            if (isPrivateWorkspace) {
+                              void handleSignOut();
+                              return;
+                            }
                             setViewMode('landing');
                             setShowProfileDropdown(false);
                           }}
                           className="text-[10px] text-rose-500 font-bold hover:underline cursor-pointer"
                         >
-                          Sign Out Session
+                          {isPrivateWorkspace ? 'Sign Out' : 'Exit Preview'}
                         </button>
                       </div>
                     </div>
                   )}
                 </div>
-
               </div>
             </header>
 
-            {/* Mobile dynamic navigation indicators in page view */}
             <div
               id="mobile-navigation-bar"
               className="md:hidden border-b border-theme-border bg-theme-surface flex items-center justify-around h-11 shrink-0 px-3 text-[11px] select-none"
@@ -325,21 +442,27 @@ export default function App() {
               <button onClick={() => setActiveTab('settings')} className={`px-2.5 py-1 rounded-lg font-bold ${activeTab === 'settings' ? 'bg-theme-accent text-theme-accent-fg shadow-sm' : 'text-theme-text-secondary'}`}>Settings</button>
             </div>
 
-            {/* Main Interactive Ingest scroll container */}
             <div id="main-content-scroll" className="flex-grow overflow-y-auto overflow-x-hidden p-6 md:p-8 space-y-6">
-              
+              {isPrivateWorkspace && sources.length === 0 && articles.length === 0 && (
+                <div id="private-empty-workspace" className="bg-theme-surface border border-theme-border rounded-xl p-5 shadow-sm text-left">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-theme-text-secondary">Private Workspace</span>
+                  <h2 className="text-lg font-bold text-theme-text-primary mt-1">Your workspace is ready.</h2>
+                  <p className="text-xs text-theme-text-secondary mt-1 max-w-2xl">
+                    New authenticated users start with empty sources and items. Firestore profile setup is active; source syncing and AI summaries arrive in the next phases.
+                  </p>
+                </div>
+              )}
+
               {activeTab === 'dashboard' && (
                 <div className="space-y-6 animate-fade-in text-left">
-                  {/* Top dashboard grid (2x2 metric cards (Sources: 4, Articles: 138, Duplicates: 32, Insights: 121) + Topic Mix + Source Health) */}
                   <StatsGrid
                     sourcesCount={sources.length}
-                    articlesCount={articles.length + 131} // default + mock = 138 articles
-                    duplicatesCount={32}
-                    insightsCount={121}
+                    articlesCount={dashboardCounts.articles}
+                    duplicatesCount={dashboardCounts.duplicates}
+                    insightsCount={dashboardCounts.insights}
                     articles={searchedArticles}
                   />
 
-                  {/* Content Activity line chart & right stacked stats */}
                   <AnalyticsCharts
                     articles={searchedArticles}
                     isScanning={isScanning}
@@ -348,14 +471,12 @@ export default function App() {
                     recentLogs={executionLogs}
                   />
 
-                  {/* Compact Monitored Sources Table Summary */}
                   <MonitoredSourcesSummary sources={sources} />
 
-                  {/* Compact Latest Insights Table */}
                   <div className="pt-2">
                     <InsightsTable
                       insights={searchedArticles}
-                      onRefreshDemo={handleResetToDemo}
+                      onRefreshDemo={handleResetWorkspace}
                     />
                   </div>
                 </div>
@@ -375,7 +496,7 @@ export default function App() {
                 <div className="animate-fade-in text-left">
                   <InsightsTable
                     insights={searchedArticles}
-                    onRefreshDemo={handleResetToDemo}
+                    onRefreshDemo={handleResetWorkspace}
                   />
                 </div>
               )}
@@ -392,20 +513,24 @@ export default function App() {
                     theme={theme}
                     onToggleTheme={() => setTheme(theme === 'light' ? 'dark' : 'light')}
                     user={user}
-                    onResetDemo={handleResetToDemo}
+                    onResetDemo={handleResetWorkspace}
+                    workspaceMode={workspaceMode}
                   />
                 </div>
               )}
-
             </div>
-
-            {/* Footer has been REMOVED entirely from the application view shell! */}
-
           </div>
-          
         </div>
       )}
 
+      {authModalMode && (
+        <AuthModal
+          mode={authModalMode}
+          onClose={() => setAuthModalMode(null)}
+          onModeChange={setAuthModalMode}
+          onSuccess={handleAuthSuccess}
+        />
+      )}
     </div>
   );
 }

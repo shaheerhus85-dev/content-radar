@@ -1,4 +1,3 @@
-import React from 'react';
 import { Target, Eye, Shield, Sparkles, Compass, Heart } from 'lucide-react';
 import { ContentItem } from '../types';
 
@@ -24,7 +23,7 @@ export default function StatsGrid({
     return acc;
   }, {} as Record<string, number>);
 
-  const totalTopicsCount = Math.max(1, articles.length);
+  const totalTopicsCount = articles.length;
   const sortedTopics = Object.keys(topicCounts).map((topic, index) => {
     const count = topicCounts[topic];
     const percentage = Math.round((count / totalTopicsCount) * 100);
@@ -211,8 +210,8 @@ export default function StatsGrid({
                 <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#12B76A" strokeWidth="4.5" strokeDasharray="99 1" strokeDashoffset="0" strokeLinecap="round" />
               </svg>
               <div className="absolute flex flex-col items-center justify-center text-center">
-                <span className="text-[19px] font-bold text-[#12B76A] leading-none">99%</span>
-                <span className="text-[8px] text-theme-text-secondary font-bold uppercase tracking-wider mt-0.5">Stable</span>
+                <span className="text-[19px] font-bold text-[#12B76A] leading-none">{sourcesCount > 0 ? '99%' : '0%'}</span>
+                <span className="text-[8px] text-theme-text-secondary font-bold uppercase tracking-wider mt-0.5">{sourcesCount > 0 ? 'Stable' : 'Empty'}</span>
               </div>
             </div>
           </div>
@@ -220,7 +219,7 @@ export default function StatsGrid({
           <div className="flex flex-col gap-1 text-[11px] font-semibold text-theme-text-secondary border-t border-theme-border pt-2">
             <div className="flex items-center justify-between">
               <span>Primary feeds:</span>
-              <span className="text-[#12B76A] font-bold">4 Verified</span>
+              <span className="text-[#12B76A] font-bold">{sourcesCount} Verified</span>
             </div>
             <div className="flex items-center justify-between">
               <span>Failure rate:</span>

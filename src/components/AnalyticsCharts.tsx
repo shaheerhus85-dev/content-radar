@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { RefreshCw, Activity, Server, Clock, Compass, Plus } from 'lucide-react';
+import { useState } from 'react';
+import { RefreshCw, Activity } from 'lucide-react';
 import { ContentItem } from '../types';
 
 interface AnalyticsChartsProps {
@@ -182,27 +182,17 @@ export default function AnalyticsCharts({
         >
           <span className="text-[14px] font-semibold text-theme-text-primary block mb-3">Recent Activity</span>
           <div className="space-y-2 text-[12px]">
-            <div className="flex items-center justify-between border-b border-theme-border/40 pb-2">
-              <span className="text-theme-text-secondary flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-500 dark:bg-zinc-400" />
-                Google Search Central
-              </span>
-              <span className="text-theme-text-primary font-bold">Checked</span>
-            </div>
-            <div className="flex items-center justify-between border-b border-theme-border/40 pb-2">
-              <span className="text-theme-text-secondary flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-zinc-500" />
-                OpenAI News
-              </span>
-              <span className="text-theme-text-primary font-bold">Checked</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-theme-text-secondary flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-zinc-600" />
-                Vercel Blog
-              </span>
-              <span className="text-theme-text-primary font-bold">Checked</span>
-            </div>
+            {recentLogs.length === 0 ? (
+              <span className="text-theme-text-secondary block">No workspace activity yet.</span>
+            ) : recentLogs.slice(0, 3).map((log, index) => (
+              <div key={`${log}-${index}`} className="flex items-center justify-between border-b border-theme-border/40 last:border-0 pb-2 last:pb-0 gap-3">
+                <span className="text-theme-text-secondary flex items-center gap-1.5 min-w-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-500 dark:bg-zinc-400 shrink-0" />
+                  <span className="truncate">{log}</span>
+                </span>
+                <span className="text-theme-text-primary font-bold shrink-0">Logged</span>
+              </div>
+            ))}
           </div>
         </div>
 

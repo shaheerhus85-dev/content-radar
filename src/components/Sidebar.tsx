@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   LayoutDashboard,
   Globe,
@@ -7,7 +6,6 @@ import {
   Settings,
   HelpCircle,
   Radio,
-  User,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -15,6 +13,7 @@ interface SidebarProps {
   setActiveTab: (tab: string) => void;
   user: { name: string; email: string; plan: string } | null;
   sourcesCount?: number;
+  workspaceMode: 'demo' | 'private';
 }
 
 export default function Sidebar({
@@ -22,6 +21,7 @@ export default function Sidebar({
   setActiveTab,
   user,
   sourcesCount = 4,
+  workspaceMode,
 }: SidebarProps) {
   const routes = [
     {
@@ -141,10 +141,10 @@ export default function Sidebar({
           </div>
           <div className="min-w-0 flex-1">
             <span className="text-xs font-bold text-theme-text-primary block truncate leading-none">
-              Demo Workspace
+              {workspaceMode === 'private' ? 'Private Workspace' : 'Demo Workspace'}
             </span>
             <span className="text-[9.5px] font-semibold text-theme-text-secondary block truncate leading-none mt-1">
-              Guest Recruiter
+              {user?.email || 'Guest Preview'}
             </span>
           </div>
         </div>
