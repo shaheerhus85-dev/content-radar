@@ -63,7 +63,14 @@ export default function MonitoredSourcesSummary({
               >
                 {/* Source column */}
                 <td className="px-4 py-3 font-semibold text-theme-text-primary">
-                  {src.name}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span>{src.name}</span>
+                    {src.isSample && (
+                      <span className="rounded-md border border-theme-border bg-theme-surface-soft px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-theme-text-secondary">
+                        Sample
+                      </span>
+                    )}
+                  </div>
                 </td>
                 
                 {/* Type column */}

@@ -86,6 +86,7 @@ export default function InsightsTable({
 
   const getAiStatusLabel = (item: ContentItem) => {
     if (item.aiStatus === 'summarized') return 'Summarized';
+    if (item.aiStatus === 'quota_limited') return 'AI queued';
     if (item.aiStatus === 'failed') return 'Failed';
     return 'Parsed only';
   };
@@ -99,7 +100,19 @@ export default function InsightsTable({
       return 'text-rose-500 bg-rose-500/10 border-rose-500/20';
     }
 
+    if (item.aiStatus === 'quota_limited') {
+      return 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/20';
+    }
+
     return 'text-theme-text-secondary bg-theme-surface-soft border-theme-border';
+  };
+
+  const getFriendlyAiErrorMessage = (item: ContentItem) => {
+    if (item.aiStatus === 'quota_limited') {
+      return 'AI quota reached. Parsed items are saved and can be analyzed later.';
+    }
+
+    return item.aiErrorMessage || 'Gemini analysis failed.';
   };
 
   return (
@@ -224,6 +237,11 @@ export default function InsightsTable({
                         {item.isNew && (
                           <span className="px-1.5 py-0.5 text-[8.5px] font-bold bg-theme-accent text-theme-accent-fg rounded uppercase tracking-wider shrink-0">
                             New
+                          </span>
+                        )}
+                        {item.isSample && (
+                          <span className="px-1.5 py-0.5 text-[8.5px] font-bold bg-theme-surface-soft text-theme-text-secondary border border-theme-border rounded uppercase tracking-wider shrink-0">
+                            Sample
                           </span>
                         )}
                         <span className="font-bold text-theme-text-primary tracking-tight leading-snug group-hover:opacity-85 transition-opacity truncate block">
@@ -373,7 +391,9 @@ export default function InsightsTable({
                         <Sparkles className="w-3.5 h-3.5" /> AI Analysis
                       </span>
                       <div className="bg-theme-surface-soft/60 p-4 rounded-xl font-normal text-xs text-theme-text-primary leading-relaxed border border-theme-border/40">
-                        {activeArticle.aiStatus === 'failed'
+                        {activeArticle.aiStatus === 'quota_limited'
+                          ? 'AI quota reached. Parsed items are saved and can be analyzed later.'
+                          : activeArticle.aiStatus === 'failed'
                           ? 'AI analysis failed for this parsed item.'
                           : 'AI analysis not generated yet.'}
                       </div>
@@ -403,11 +423,20 @@ export default function InsightsTable({
                         </span>
                       </div>
 
-                      {activeArticle.aiStatus === 'failed' && (
+                      {activeArticle.isSample && (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] uppercase font-bold text-theme-text-secondary/80">Data Label</span>
+                          <span className="inline-flex w-fit rounded-md border border-theme-border bg-theme-surface-soft px-2 py-0.5 text-[10.5px] font-bold text-theme-text-secondary">
+                            {activeArticle.sampleLabel || 'Sample workspace data'}
+                          </span>
+                        </div>
+                      )}
+
+                      {(activeArticle.aiStatus === 'failed' || activeArticle.aiStatus === 'quota_limited') && (
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[10px] uppercase font-bold text-theme-text-secondary/80">AI Error</span>
                           <span className="text-rose-500 font-semibold text-xs break-words">
-                            {activeArticle.aiErrorMessage || 'Gemini analysis failed.'}
+                            {getFriendlyAiErrorMessage(activeArticle)}
                           </span>
                           {(activeArticle.aiErrorStatus || activeArticle.aiErrorCode) && (
                             <span className="text-[10px] text-theme-text-secondary font-mono">

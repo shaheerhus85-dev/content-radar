@@ -9,6 +9,7 @@ import {
   type SourceInput,
 } from './lib/sourceService';
 import { subscribeToUserItems } from './lib/itemService';
+import { loadSampleWorkspace } from './lib/sampleWorkspaceService';
 import Sidebar from './components/Sidebar';
 import StatsGrid from './components/StatsGrid';
 import AnalyticsCharts from './components/AnalyticsCharts';
@@ -24,6 +25,7 @@ import {
   Moon,
   Sun,
   Radio,
+  Sparkles,
 } from 'lucide-react';
 
 type ViewMode = 'landing' | 'dashboard';
@@ -81,6 +83,10 @@ export default function App() {
   const [aiAnalysisMessage, setAiAnalysisMessage] = useState('');
   const [aiAnalysisError, setAiAnalysisError] = useState('');
   const [isAnalyzingExisting, setIsAnalyzingExisting] = useState(false);
+  const [sampleWorkspaceMessage, setSampleWorkspaceMessage] = useState('');
+  const [sampleWorkspaceError, setSampleWorkspaceError] = useState('');
+  const [isLoadingSampleWorkspace, setIsLoadingSampleWorkspace] = useState(false);
+  const [openAddSourceSignal, setOpenAddSourceSignal] = useState(0);
 
   const [globalSearch, setGlobalSearch] = useState('');
   const [isScanning, setIsScanning] = useState(false);
@@ -128,6 +134,8 @@ export default function App() {
       setRefreshError('');
       setAiAnalysisMessage('');
       setAiAnalysisError('');
+      setSampleWorkspaceMessage('');
+      setSampleWorkspaceError('');
       setPrivateSourcesLoading(false);
       setPrivateItemsLoading(false);
     }
@@ -255,6 +263,8 @@ export default function App() {
     setRefreshError('');
     setAiAnalysisMessage('');
     setAiAnalysisError('');
+    setSampleWorkspaceMessage('');
+    setSampleWorkspaceError('');
     setPrivateSourcesLoading(false);
     setPrivateItemsLoading(false);
     setWorkspaceMode('demo');
@@ -373,6 +383,7 @@ export default function App() {
           aiSummarized?: number;
           aiSkipped?: number;
           aiFailed?: number;
+          aiQuotaLimited?: number;
           failedSources?: { sourceName: string; error: string }[];
         };
 
@@ -383,7 +394,7 @@ export default function App() {
         setScanProgress(1);
         setPrivateLogs((prev) => [
           `Refresh complete. Checked ${result.sourcesChecked ?? 0} sources, added ${result.newItems ?? 0} new items, skipped ${result.skippedDuplicates ?? 0} duplicates.`,
-          `AI insights: ${result.aiSummarized ?? 0} summarized, ${result.aiSkipped ?? 0} parsed only, ${result.aiFailed ?? 0} failed.`,
+          `AI insights: ${result.aiSummarized ?? 0} summarized, ${result.aiSkipped ?? 0} parsed only, ${result.aiFailed ?? 0} failed, ${result.aiQuotaLimited ?? 0} queued.`,
           ...(result.failedSources?.length
             ? [`${result.failedSources.length} sources failed and were skipped.`]
             : []),
@@ -461,6 +472,42 @@ export default function App() {
     }, 650);
   };
 
+  const handleLoadSampleWorkspace = async () => {
+    if (!authUser) {
+      setSampleWorkspaceError('Sign in before loading the sample workspace.');
+      return;
+    }
+
+    if (isLoadingSampleWorkspace) return;
+
+    setIsLoadingSampleWorkspace(true);
+    setSampleWorkspaceError('');
+    setSampleWorkspaceMessage('');
+
+    try {
+      const result = await loadSampleWorkspace(authUser.uid);
+      setSampleWorkspaceMessage(`Loaded sample workspace with ${result.sourcesCreated} sources and ${result.itemsCreated} sample insights.`);
+      setPrivateLogs((prev) => [
+        `Loaded sample workspace: ${result.sourcesCreated} sources, ${result.itemsCreated} sample items.`,
+        ...prev,
+      ]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to load sample workspace.';
+      setSampleWorkspaceError(message);
+      setPrivateLogs((prev) => [
+        `Sample workspace failed: ${message}`,
+        ...prev,
+      ]);
+    } finally {
+      setIsLoadingSampleWorkspace(false);
+    }
+  };
+
+  const handleAddOwnSourceFromOnboarding = () => {
+    setActiveTab('sources');
+    setOpenAddSourceSignal((current) => current + 1);
+  };
+
   const handleAnalyzeExistingItems = async () => {
     if (!isPrivateWorkspace) {
       setAiAnalysisMessage('Demo items are already using sample AI insights.');
@@ -492,7 +539,7 @@ export default function App() {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ limit: 10 }),
+        body: JSON.stringify({ limit: 1 }),
       });
       const result = await response.json().catch(() => ({
         success: false,
@@ -505,6 +552,7 @@ export default function App() {
         summarized?: number;
         failed?: number;
         skipped?: number;
+        quotaLimited?: number;
       };
 
       if (!response.ok || !result.success) {
@@ -513,11 +561,11 @@ export default function App() {
 
       const summary = result.message
         ? `${result.message} ${result.skipped ?? 0} skipped.`
-        : `AI analysis completed. ${result.summarized ?? 0} summarized, ${result.failed ?? 0} failed, ${result.skipped ?? 0} skipped.`;
+        : `AI analysis completed. ${result.summarized ?? 0} summarized, ${result.failed ?? 0} failed, ${result.quotaLimited ?? 0} quota limited, ${result.skipped ?? 0} skipped.`;
 
       setAiAnalysisMessage(summary);
       setPrivateLogs((prev) => [
-        `Analyze existing complete. Checked ${result.checked ?? 0}; ${result.summarized ?? 0} summarized, ${result.failed ?? 0} failed, ${result.skipped ?? 0} skipped.`,
+        `Analyze existing complete. Checked ${result.checked ?? 0}; ${result.summarized ?? 0} summarized, ${result.failed ?? 0} failed, ${result.quotaLimited ?? 0} quota limited, ${result.skipped ?? 0} skipped.`,
         ...prev,
       ]);
     } catch (error) {
@@ -541,6 +589,8 @@ export default function App() {
       setRefreshError('');
       setAiAnalysisMessage('');
       setAiAnalysisError('');
+      setSampleWorkspaceMessage('');
+      setSampleWorkspaceError('');
       return;
     }
 
@@ -756,13 +806,50 @@ export default function App() {
             </div>
 
             <div id="main-content-scroll" className="flex-grow overflow-y-auto overflow-x-hidden p-6 md:p-8 space-y-6">
-              {isPrivateWorkspace && sources.length === 0 && articles.length === 0 && (
-                <div id="private-empty-workspace" className="bg-theme-surface border border-theme-border rounded-xl p-5 shadow-sm text-left">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-theme-text-secondary">Private Workspace</span>
-                  <h2 className="text-lg font-bold text-theme-text-primary mt-1">Your workspace is ready.</h2>
-                  <p className="text-xs text-theme-text-secondary mt-1 max-w-2xl">
-                    New authenticated users start with empty sources and items. Add a website source, then refresh sources to fetch parsed updates and create AI insights when Gemini is configured.
-                  </p>
+              {isPrivateWorkspace && !privateSourcesLoading && !privateItemsLoading && sources.length === 0 && articles.length === 0 && (
+                <div id="private-empty-workspace" className="bg-theme-surface border border-theme-border rounded-xl p-5 md:p-6 shadow-sm text-left">
+                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-5">
+                    <div className="max-w-2xl">
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-theme-text-secondary">
+                        <Sparkles className="w-3.5 h-3.5" /> Private Workspace
+                      </span>
+                      <h2 className="text-lg font-bold text-theme-text-primary mt-1">Your private workspace is ready.</h2>
+                      <p className="text-xs text-theme-text-secondary mt-1.5 leading-relaxed">
+                        Start with a sample monitoring workspace or add your own source.
+                      </p>
+                      <p className="text-[11px] text-theme-text-secondary mt-2 leading-relaxed">
+                        Sample records are clearly labeled and stored only in your authenticated workspace after you choose to load them.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row md:flex-col gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => void handleLoadSampleWorkspace()}
+                        disabled={isLoadingSampleWorkspace}
+                        className="px-4 py-2 bg-theme-accent text-theme-accent-fg hover:opacity-90 disabled:opacity-50 font-bold text-xs rounded-xl border border-theme-border"
+                      >
+                        {isLoadingSampleWorkspace ? 'Loading Sample...' : 'Load Sample Workspace'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAddOwnSourceFromOnboarding}
+                        className="px-4 py-2 bg-theme-surface-soft hover:bg-theme-border/40 text-theme-text-primary text-xs font-bold rounded-xl border border-theme-border"
+                      >
+                        Add My Own Source
+                      </button>
+                    </div>
+                  </div>
+
+                  {(sampleWorkspaceMessage || sampleWorkspaceError) && (
+                    <div className={`mt-4 rounded-xl border px-4 py-3 text-xs font-semibold ${
+                      sampleWorkspaceError
+                        ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                        : 'bg-[#12B76A]/10 text-[#12B76A] border-[#12B76A]/15'
+                    }`}>
+                      {sampleWorkspaceError || sampleWorkspaceMessage}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -827,6 +914,7 @@ export default function App() {
                     errorMessage={isPrivateWorkspace ? privateSourcesError : ''}
                     workspaceMode={workspaceMode}
                     sourceItemCounts={sourceItemCounts}
+                    openAddFormSignal={openAddSourceSignal}
                   />
                 </div>
               )}

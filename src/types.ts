@@ -36,7 +36,7 @@ export type SignalType =
   | 'Technical Update'
   | 'Other';
 
-export type AiStatus = 'summarized' | 'failed' | 'skipped';
+export type AiStatus = 'summarized' | 'failed' | 'skipped' | 'quota_limited';
 
 export interface Source {
   id: string;
@@ -49,6 +49,8 @@ export interface Source {
   maxItemsPerRefresh?: number;
   includePatterns?: string[];
   excludePatterns?: string[];
+  isSample?: boolean;
+  sampleLabel?: string;
   createdAt?: string | null;
   updatedAt?: string | null;
   lastFetchedAt?: string | null;
@@ -77,6 +79,8 @@ export interface ContentItem {
   aiErrorCode?: string | null;
   aiErrorStatus?: number | null;
   aiErrorMessage?: string | null;
+  isSample?: boolean;
+  sampleLabel?: string;
   keyTakeaway?: string;
   actionNote: string;
   status?: 'parsed';

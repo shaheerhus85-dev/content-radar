@@ -164,6 +164,7 @@ export default async function handler(req, res) {
     let aiSummarized = 0;
     let aiSkipped = 0;
     let aiFailed = 0;
+    let aiQuotaLimited = 0;
     const failedSources = [];
 
     for (const sourceDoc of sourcesSnapshot.docs) {
@@ -228,7 +229,11 @@ export default async function handler(req, res) {
                 status: aiFields.aiErrorStatus,
                 message: aiFields.aiErrorMessage,
               });
-              aiFailed++;
+              if (aiFields.aiStatus === 'quota_limited') {
+                aiQuotaLimited++;
+              } else {
+                aiFailed++;
+              }
             }
           } else {
             aiSkipped++;
@@ -279,6 +284,7 @@ export default async function handler(req, res) {
       aiSummarized,
       aiSkipped,
       aiFailed,
+      aiQuotaLimited,
       failedSources,
     });
   } catch (error) {

@@ -78,8 +78,16 @@ export const safeGeminiError = (error) => ({
   aiErrorName: safeString(error?.name || 'GeminiError', 80),
   aiErrorCode: safeString(error?.code || error?.cause?.code || '', 80),
   aiErrorStatus: typeof error?.status === 'number' ? error.status : null,
-  aiErrorMessage: safeString(error?.message || 'Gemini analysis failed.', 360),
+  aiErrorMessage: isGeminiQuotaError(error)
+    ? 'AI quota reached. Parsed items are saved and can be analyzed later.'
+    : safeString(error?.message || 'Gemini analysis failed.', 360),
 });
+
+export const isGeminiQuotaError = (error) => (
+  error?.status === 429
+  || String(error?.code || '').toUpperCase() === 'RESOURCE_EXHAUSTED'
+  || /RESOURCE_EXHAUSTED|quota/i.test(error?.message || '')
+);
 
 export const normalizeAiInsight = (rawInsight, fallbackSummary) => {
   const topic = TOPICS.has(rawInsight?.topic) ? rawInsight.topic : 'Uncategorized';
@@ -340,7 +348,7 @@ export const buildSkippedAiFields = () => ({
 
 export const buildFailedAiFields = (FieldValue, error) => ({
   ...safeGeminiError(error),
-  aiStatus: 'failed',
+  aiStatus: isGeminiQuotaError(error) ? 'quota_limited' : 'failed',
   aiModel: getGeminiModel(),
   aiUpdatedAt: FieldValue.serverTimestamp(),
 });

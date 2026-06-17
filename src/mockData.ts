@@ -8,7 +8,9 @@ export const INITIAL_SOURCES: Source[] = [
     type: 'rss',
     createdAt: '2026-05-10',
     lastFetchedAt: '12 mins ago',
-    status: 'active'
+    status: 'active',
+    isSample: true,
+    sampleLabel: 'Sample workspace data',
   },
   {
     id: 'src-2',
@@ -17,7 +19,9 @@ export const INITIAL_SOURCES: Source[] = [
     type: 'rss',
     createdAt: '2026-05-12',
     lastFetchedAt: '24 mins ago',
-    status: 'active'
+    status: 'active',
+    isSample: true,
+    sampleLabel: 'Sample workspace data',
   },
   {
     id: 'src-3',
@@ -26,7 +30,9 @@ export const INITIAL_SOURCES: Source[] = [
     type: 'rss',
     createdAt: '2026-05-15',
     lastFetchedAt: '45 mins ago',
-    status: 'active'
+    status: 'active',
+    isSample: true,
+    sampleLabel: 'Sample workspace data',
   },
   {
     id: 'src-4',
@@ -35,7 +41,9 @@ export const INITIAL_SOURCES: Source[] = [
     type: 'rss',
     createdAt: '2026-05-18',
     lastFetchedAt: '1 hour ago',
-    status: 'active'
+    status: 'active',
+    isSample: true,
+    sampleLabel: 'Sample workspace data',
   }
 ];
 
@@ -135,4 +143,6 @@ export const INITIAL_ARTICLES: ContentItem[] = DEMO_ARTICLES.map((article, index
   relevanceScore: 92 - index,
   aiStatus: 'summarized',
   aiModel: 'demo',
+  isSample: true,
+  sampleLabel: 'Sample workspace data',
 }));

@@ -6,7 +6,7 @@ import {
   hasGeminiApiKey,
 } from './lib/geminiInsights.js';
 
-const DEFAULT_LIMIT = 10;
+const DEFAULT_LIMIT = 1;
 const MAX_LIMIT = 25;
 const FETCH_CANDIDATE_LIMIT = 100;
 
@@ -40,6 +40,7 @@ const getLimit = (value) => {
 
 const shouldAnalyzeItem = (item) => (
   !item.aiStatus || item.aiStatus === 'skipped' || item.aiStatus === 'failed'
+  || item.aiStatus === 'quota_limited'
 );
 
 const summarizeExistingItem = (item) => {
@@ -139,6 +140,7 @@ export default async function handler(req, res) {
     let summarized = 0;
     let failed = 0;
     let skipped = 0;
+    let quotaLimited = 0;
 
     if (!hasGeminiApiKey()) {
       await Promise.all(candidateDocs.map((itemDoc) => itemDoc.ref.update({
@@ -153,6 +155,7 @@ export default async function handler(req, res) {
         summarized,
         failed,
         skipped: candidateDocs.length,
+        quotaLimited,
         message: 'GEMINI_API_KEY is not configured.',
       });
     }
@@ -193,7 +196,11 @@ export default async function handler(req, res) {
           ...aiFields,
           updatedAt: FieldValue.serverTimestamp(),
         });
-        failed++;
+        if (aiFields.aiStatus === 'quota_limited') {
+          quotaLimited++;
+        } else {
+          failed++;
+        }
       }
     }
 
@@ -203,6 +210,7 @@ export default async function handler(req, res) {
       summarized,
       failed,
       skipped,
+      quotaLimited,
     });
   } catch (error) {
     console.error('Analyze existing API failed.', error);

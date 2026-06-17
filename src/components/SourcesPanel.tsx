@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { CheckCircle2, ChevronLeft, Globe, Plus, Search, SlidersHorizontal, Trash2 } from 'lucide-react';
 import type {
   Source,
@@ -16,6 +16,7 @@ interface SourcesPanelProps {
   errorMessage?: string;
   workspaceMode: 'demo' | 'private';
   sourceItemCounts?: Record<string, number>;
+  openAddFormSignal?: number;
 }
 
 interface DiscoveryCandidate {
@@ -91,6 +92,7 @@ export default function SourcesPanel({
   errorMessage = '',
   workspaceMode,
   sourceItemCounts = {},
+  openAddFormSignal = 0,
 }: SourcesPanelProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [websiteUrl, setWebsiteUrl] = useState('');
@@ -109,6 +111,12 @@ export default function SourcesPanel({
   const selectedCandidate = discoveryResult?.candidates?.find((candidate) => candidate.url === selectedUrl)
     || recommended;
   const alternatives = (discoveryResult?.candidates || []).filter((candidate) => candidate.url !== recommended?.url);
+
+  useEffect(() => {
+    if (openAddFormSignal > 0) {
+      setShowAddForm(true);
+    }
+  }, [openAddFormSignal]);
 
   const resetAddFlow = () => {
     setWebsiteUrl('');
@@ -496,6 +504,11 @@ export default function SourcesPanel({
                         <span className="font-bold text-theme-text-primary text-xs truncate block">
                           {src.name}
                         </span>
+                        {src.isSample && (
+                          <span className="inline-flex mt-1 rounded-md border border-theme-border bg-theme-surface px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-theme-text-secondary">
+                            Sample
+                          </span>
+                        )}
                         <span className="text-[10px] text-theme-text-secondary font-semibold font-mono truncate block mt-0.5">
                           {src.url}
                         </span>

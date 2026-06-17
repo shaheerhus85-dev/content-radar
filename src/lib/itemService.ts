@@ -34,6 +34,8 @@ interface ItemDocument {
   aiErrorCode?: string | null;
   aiErrorStatus?: number | null;
   aiErrorMessage?: string | null;
+  isSample?: boolean;
+  sampleLabel?: string;
   keyTakeaway?: string;
   actionNote?: string;
   status?: 'parsed';
@@ -99,6 +101,8 @@ export const subscribeToUserItems = (
           aiErrorCode: data.aiErrorCode || null,
           aiErrorStatus: typeof data.aiErrorStatus === 'number' ? data.aiErrorStatus : null,
           aiErrorMessage: data.aiErrorMessage || null,
+          isSample: data.isSample || false,
+          sampleLabel: data.sampleLabel || '',
           keyTakeaway: data.keyTakeaway || '',
           actionNote: data.actionNote || data.actionProposal || 'Review this update.',
           status: data.status || 'parsed',

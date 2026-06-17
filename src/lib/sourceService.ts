@@ -28,6 +28,8 @@ interface SourceDocument {
   maxItemsPerRefresh?: number;
   includePatterns?: string[];
   excludePatterns?: string[];
+  isSample?: boolean;
+  sampleLabel?: string;
   status?: 'active' | 'failed';
   createdAt?: Timestamp | null;
   updatedAt?: Timestamp | null;
@@ -90,6 +92,8 @@ export const subscribeToUserSources = (
           maxItemsPerRefresh: data.maxItemsPerRefresh,
           includePatterns: data.includePatterns || [],
           excludePatterns: data.excludePatterns || [],
+          isSample: data.isSample || false,
+          sampleLabel: data.sampleLabel || '',
           status: data.status || 'active',
           createdAt: formatTimestamp(data.createdAt),
           updatedAt: formatTimestamp(data.updatedAt),
