@@ -9,14 +9,25 @@ import {
   serverTimestamp,
   type Timestamp,
 } from 'firebase/firestore';
-import { Source } from '../types';
+import {
+  Source,
+  type SourceDiscoveryMethod,
+  type SourcePurpose,
+  type SourceType,
+} from '../types';
 import { db } from './firebase';
 import { userSourcePath } from './firestorePaths';
 
 interface SourceDocument {
   name?: string;
   url?: string;
-  type?: 'rss' | 'sitemap';
+  type?: SourceType;
+  purpose?: SourcePurpose;
+  discoveredFrom?: string;
+  discoveryMethod?: SourceDiscoveryMethod;
+  maxItemsPerRefresh?: number;
+  includePatterns?: string[];
+  excludePatterns?: string[];
   status?: 'active' | 'failed';
   createdAt?: Timestamp | null;
   updatedAt?: Timestamp | null;
@@ -26,7 +37,13 @@ interface SourceDocument {
 export interface SourceInput {
   name: string;
   url: string;
-  type: 'rss' | 'sitemap';
+  type: SourceType;
+  purpose?: SourcePurpose;
+  discoveredFrom?: string;
+  discoveryMethod?: SourceDiscoveryMethod;
+  maxItemsPerRefresh?: number;
+  includePatterns?: string[];
+  excludePatterns?: string[];
 }
 
 const requireFirestore = () => {
@@ -67,6 +84,12 @@ export const subscribeToUserSources = (
           name: data.name || '',
           url: data.url || '',
           type: data.type || 'rss',
+          purpose: data.purpose,
+          discoveredFrom: data.discoveredFrom,
+          discoveryMethod: data.discoveryMethod,
+          maxItemsPerRefresh: data.maxItemsPerRefresh,
+          includePatterns: data.includePatterns || [],
+          excludePatterns: data.excludePatterns || [],
           status: data.status || 'active',
           createdAt: formatTimestamp(data.createdAt),
           updatedAt: formatTimestamp(data.updatedAt),
@@ -85,6 +108,12 @@ export const addUserSource = async (uid: string, sourceInput: SourceInput) => {
     name: sourceInput.name,
     url: sourceInput.url,
     type: sourceInput.type,
+    purpose: sourceInput.purpose || 'custom',
+    discoveredFrom: sourceInput.discoveredFrom || sourceInput.url,
+    discoveryMethod: sourceInput.discoveryMethod || 'fallback',
+    maxItemsPerRefresh: sourceInput.maxItemsPerRefresh || 10,
+    includePatterns: sourceInput.includePatterns || [],
+    excludePatterns: sourceInput.excludePatterns || [],
     status: 'active',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -98,4 +127,3 @@ export const deleteUserSource = async (uid: string, sourceId: string) => {
   const firestore = requireFirestore();
   await deleteDoc(doc(firestore, userSourcePath(uid, sourceId)));
 };
-

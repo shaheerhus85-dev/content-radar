@@ -16,14 +16,17 @@ const getBearerToken = (authorizationHeader) => {
 const hashUrl = (url) =>
   createHash('sha256').update(url.trim().toLowerCase()).digest('hex');
 
-const fetchXml = async (url) => {
+const fetchSourceText = async (url, sourceType = 'rss') => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const acceptsHtml = sourceType === 'webpage';
 
   try {
     const response = await fetch(url, {
       headers: {
-        Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.8',
+        Accept: acceptsHtml
+          ? 'text/html, application/xhtml+xml;q=0.9, */*;q=0.8'
+          : 'application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.8',
         'User-Agent': 'ContentRadar/1.0 (+https://github.com/shaheerhus85-dev/content-radar)',
       },
       signal: controller.signal,
@@ -39,9 +42,67 @@ const fetchXml = async (url) => {
   }
 };
 
+const decodeHtmlEntities = (value) => (
+  value
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+);
+
+const parseWebpageItem = (html, url) => {
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const descriptionMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["'][^>]*>/i)
+    || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["'][^>]*>/i);
+  const title = titleMatch?.[1]
+    ? decodeHtmlEntities(titleMatch[1]).replace(/\s+/g, ' ').trim()
+    : new URL(url).hostname;
+  const rawSnippet = descriptionMatch?.[1]
+    ? decodeHtmlEntities(descriptionMatch[1]).replace(/\s+/g, ' ').trim()
+    : `Page watch checked ${url}`;
+
+  return [{
+    title,
+    url,
+    publishedAt: null,
+    rawSnippet,
+  }];
+};
+
 const summarizeRawSnippet = (rawSnippet) => {
   if (!rawSnippet) return 'Parsed source update ready for review.';
   return rawSnippet.length > 260 ? `${rawSnippet.slice(0, 257).trim()}...` : rawSnippet;
+};
+
+const getMaxItemsPerRefresh = (source) => {
+  const configuredMax = Number(source.maxItemsPerRefresh);
+  if (!Number.isFinite(configuredMax)) return MAX_ITEMS_PER_SOURCE;
+
+  return Math.max(1, Math.min(50, Math.floor(configuredMax)));
+};
+
+const matchesPatternList = (item, patterns) => {
+  if (!Array.isArray(patterns) || patterns.length === 0) return false;
+
+  const searchableText = `${item.title || ''} ${item.url || ''} ${item.rawSnippet || ''}`.toLowerCase();
+  return patterns.some((pattern) => {
+    if (typeof pattern !== 'string' || !pattern.trim()) return false;
+    return searchableText.includes(pattern.trim().toLowerCase());
+  });
+};
+
+const applySourceFilters = (items, source) => {
+  const includePatterns = Array.isArray(source.includePatterns) ? source.includePatterns : [];
+  const excludePatterns = Array.isArray(source.excludePatterns) ? source.excludePatterns : [];
+
+  return items.filter((item) => {
+    if (includePatterns.length > 0 && !matchesPatternList(item, includePatterns)) {
+      return false;
+    }
+
+    return !matchesPatternList(item, excludePatterns);
+  });
 };
 
 export default async function handler(req, res) {
@@ -109,8 +170,15 @@ export default async function handler(req, res) {
       }
 
       try {
-        const xml = await fetchXml(source.url);
-        const parsedItems = parseFeedXml(xml, MAX_ITEMS_PER_SOURCE);
+        const sourceType = source.type || 'rss';
+        const sourceText = await fetchSourceText(source.url, sourceType);
+        const maxItemsPerRefresh = getMaxItemsPerRefresh(source);
+        const parsedItems = applySourceFilters(
+          sourceType === 'webpage'
+            ? parseWebpageItem(sourceText, source.url)
+            : parseFeedXml(sourceText, maxItemsPerRefresh),
+          source,
+        ).slice(0, maxItemsPerRefresh);
 
         for (const item of parsedItems) {
           const itemId = hashUrl(item.url);

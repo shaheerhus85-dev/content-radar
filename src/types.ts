@@ -1,8 +1,31 @@
+export type SourceType = 'rss' | 'atom' | 'sitemap' | 'webpage';
+
+export type SourcePurpose =
+  | 'competitor'
+  | 'content'
+  | 'product'
+  | 'seo'
+  | 'research'
+  | 'custom';
+
+export type SourceDiscoveryMethod =
+  | 'html-link'
+  | 'common-path'
+  | 'robots'
+  | 'sitemap'
+  | 'fallback';
+
 export interface Source {
   id: string;
   name: string;
   url: string;
-  type: 'rss' | 'sitemap';
+  type: SourceType;
+  purpose?: SourcePurpose;
+  discoveredFrom?: string;
+  discoveryMethod?: SourceDiscoveryMethod;
+  maxItemsPerRefresh?: number;
+  includePatterns?: string[];
+  excludePatterns?: string[];
   createdAt?: string | null;
   updatedAt?: string | null;
   lastFetchedAt?: string | null;

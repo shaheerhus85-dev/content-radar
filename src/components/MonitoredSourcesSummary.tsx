@@ -13,6 +13,12 @@ export default function MonitoredSourcesSummary({ sources }: MonitoredSourcesSum
     return source.type === 'sitemap' ? 32 : 25;
   };
 
+  const getSourceTypeLabel = (source: Source) => {
+    if (source.type === 'sitemap') return 'Sitemap fallback';
+    if (source.type === 'webpage') return 'Page watch';
+    return 'Feed stream';
+  };
+
   return (
     <div
       id="dashboard-monitored-sources-summary"
@@ -61,7 +67,7 @@ export default function MonitoredSourcesSummary({ sources }: MonitoredSourcesSum
                 
                 {/* Type column */}
                 <td className="px-4 py-3 text-theme-text-secondary">
-                  {src.type === 'rss' ? 'RSS Feed Stream' : 'Sitemap XML Stream'}
+                  {getSourceTypeLabel(src)}
                 </td>
                 
                 {/* Status column with nice custom badge */}

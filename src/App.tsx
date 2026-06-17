@@ -6,6 +6,7 @@ import {
   addUserSource,
   deleteUserSource,
   subscribeToUserSources,
+  type SourceInput,
 } from './lib/sourceService';
 import { subscribeToUserItems } from './lib/itemService';
 import Sidebar from './components/Sidebar';
@@ -255,13 +256,15 @@ export default function App() {
     setViewMode('landing');
   };
 
-  const handleAddSource = async (name: string, url: string, type: 'rss' | 'sitemap') => {
+  const handleAddSource = async (sourceInput: SourceInput) => {
+    const { name, url, type } = sourceInput;
+
     if (isPrivateWorkspace) {
       if (!authUser) {
         throw new Error('Sign in before adding private sources.');
       }
 
-      await addUserSource(authUser.uid, { name, url, type });
+      await addUserSource(authUser.uid, sourceInput);
       setPrivateLogs((prev) => [
         `Added new source: "${name}" stream...`,
         ...prev,
@@ -277,6 +280,12 @@ export default function App() {
       status: 'active',
       createdAt: new Date().toLocaleDateString(),
       lastFetchedAt: isPrivateWorkspace ? 'Not checked yet' : 'Just now',
+      purpose: sourceInput.purpose || 'custom',
+      discoveredFrom: sourceInput.discoveredFrom,
+      discoveryMethod: sourceInput.discoveryMethod,
+      includePatterns: sourceInput.includePatterns || [],
+      excludePatterns: sourceInput.excludePatterns || [],
+      maxItemsPerRefresh: sourceInput.maxItemsPerRefresh || 10,
     };
 
     updateSources((prev) => [newSource, ...prev]);

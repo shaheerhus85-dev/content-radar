@@ -118,5 +118,20 @@ export const parseFeedXml = (xml, maxItems = 10) => {
       .filter((item) => item.url);
   }
 
+  if (parsed?.sitemapindex?.sitemap) {
+    return toArray(parsed.sitemapindex.sitemap)
+      .slice(0, maxItems)
+      .map((entry) => {
+        const url = toText(entry.loc);
+        return {
+          title: titleFromUrl(url),
+          url,
+          publishedAt: toText(entry.lastmod) || null,
+          rawSnippet: url ? `Sitemap index entry discovered at ${url}` : '',
+        };
+      })
+      .filter((item) => item.url);
+  }
+
   return [];
 };
