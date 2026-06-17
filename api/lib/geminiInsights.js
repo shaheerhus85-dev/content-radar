@@ -43,6 +43,8 @@ class GeminiHttpError extends Error {
   }
 }
 
+const JSON_MIME_TYPE = 'application/json';
+
 export const getGeminiModel = () => (
   process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL
 );
@@ -115,6 +117,96 @@ const parseGeminiErrorBody = (rawText) => {
   }
 };
 
+const isStructuredJsonConfigError = (error) => (
+  error?.status === 400
+  && String(error?.code || '').toUpperCase() === 'INVALID_ARGUMENT'
+  && /response_?mime_?type|response_?schema|response_?format|mime_?type|schema/i.test(error?.message || '')
+);
+
+const parseJsonResponse = (value) => {
+  const text = String(value || '').trim();
+  if (!text) {
+    throw new Error('Gemini returned an empty JSON response.');
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    const fencedMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fencedMatch?.[1]) {
+      return JSON.parse(fencedMatch[1].trim());
+    }
+
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+      return JSON.parse(text.slice(firstBrace, lastBrace + 1));
+    }
+
+    throw new Error('Gemini did not return parseable JSON.');
+  }
+};
+
+const performGeminiRequest = async ({
+  apiKey,
+  model,
+  prompt,
+  responseSchema,
+  maxOutputTokens,
+  includeSchema,
+  signal,
+}) => {
+  const generationConfig = {
+    temperature: 0.2,
+    maxOutputTokens,
+    responseMimeType: JSON_MIME_TYPE,
+  };
+
+  if (includeSchema && responseSchema) {
+    generationConfig.responseSchema = responseSchema;
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': JSON_MIME_TYPE,
+        'x-goog-api-key': apiKey,
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: includeSchema
+              ? prompt
+              : `${prompt}\n\nReturn only valid JSON. Do not wrap it in markdown.`,
+          }],
+        }],
+        generationConfig,
+      }),
+      signal,
+    },
+  );
+
+  const responseText = await response.text();
+  if (!response.ok) {
+    const parsedError = parseGeminiErrorBody(responseText);
+    throw new GeminiHttpError(
+      `Gemini request failed with ${response.status}: ${safeString(parsedError.message, 240)}`,
+      response.status,
+      parsedError.code,
+    );
+  }
+
+  const responseBody = parseJsonResponse(responseText);
+  const geminiText = extractGeminiText(responseBody);
+  if (!geminiText) {
+    throw new Error('Gemini returned an empty response.');
+  }
+
+  return parseJsonResponse(geminiText);
+};
+
 const requestGeminiJson = async ({ prompt, responseSchema, maxOutputTokens = 700 }) => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -126,52 +218,31 @@ const requestGeminiJson = async ({ prompt, responseSchema, maxOutputTokens = 700
   const model = getGeminiModel();
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey,
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: prompt,
-            }],
-          }],
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens,
-            responseFormat: {
-              text: {
-                mimeType: 'application/json',
-                schema: responseSchema,
-              },
-            },
-          },
-        }),
+    try {
+      return await performGeminiRequest({
+        apiKey,
+        model,
+        prompt,
+        responseSchema,
+        maxOutputTokens,
+        includeSchema: true,
         signal: controller.signal,
-      },
-    );
+      });
+    } catch (error) {
+      if (!isStructuredJsonConfigError(error)) {
+        throw error;
+      }
 
-    const responseText = await response.text();
-    if (!response.ok) {
-      const parsedError = parseGeminiErrorBody(responseText);
-      throw new GeminiHttpError(
-        `Gemini request failed with ${response.status}: ${safeString(parsedError.message, 240)}`,
-        response.status,
-        parsedError.code,
-      );
+      return await performGeminiRequest({
+        apiKey,
+        model,
+        prompt,
+        responseSchema: null,
+        maxOutputTokens,
+        includeSchema: false,
+        signal: controller.signal,
+      });
     }
-
-    const responseBody = JSON.parse(responseText);
-    const geminiText = extractGeminiText(responseBody);
-    if (!geminiText) {
-      throw new Error('Gemini returned an empty response.');
-    }
-
-    return JSON.parse(geminiText);
   } finally {
     clearTimeout(timeoutId);
   }
@@ -198,21 +269,21 @@ const buildGeminiPrompt = ({ item, source, sourceName, fallbackSummary }) => {
 };
 
 const insightResponseSchema = {
-  type: 'object',
+  type: 'OBJECT',
   properties: {
-    aiSummary: { type: 'string' },
+    aiSummary: { type: 'STRING' },
     topic: {
-      type: 'string',
+      type: 'STRING',
       enum: Array.from(TOPICS),
     },
     signalType: {
-      type: 'string',
+      type: 'STRING',
       enum: Array.from(SIGNAL_TYPES),
     },
-    whyItMatters: { type: 'string' },
-    actionProposal: { type: 'string' },
+    whyItMatters: { type: 'STRING' },
+    actionProposal: { type: 'STRING' },
     relevanceScore: {
-      type: 'integer',
+      type: 'INTEGER',
       minimum: 1,
       maximum: 100,
     },
@@ -245,9 +316,9 @@ export const testGeminiGenerate = async () => {
   const result = await requestGeminiJson({
     prompt: 'Return JSON: {"ok": true}',
     responseSchema: {
-      type: 'object',
+      type: 'OBJECT',
       properties: {
-        ok: { type: 'boolean' },
+        ok: { type: 'BOOLEAN' },
       },
       required: ['ok'],
     },
