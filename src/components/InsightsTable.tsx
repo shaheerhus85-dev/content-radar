@@ -6,6 +6,10 @@ import { Search, Filter, Eye, X, ExternalLink, Calendar, BookOpen, AlertCircle, 
 interface InsightsTableProps {
   insights: ContentItem[];
   onRefreshDemo: () => void;
+  onAnalyzeExisting?: () => void | Promise<void>;
+  isAnalyzingExisting?: boolean;
+  analyzeExistingMessage?: string;
+  analyzeExistingError?: string;
   emptyTitle?: string;
   emptyDescription?: string;
 }
@@ -13,6 +17,10 @@ interface InsightsTableProps {
 export default function InsightsTable({
   insights,
   onRefreshDemo,
+  onAnalyzeExisting,
+  isAnalyzingExisting = false,
+  analyzeExistingMessage = '',
+  analyzeExistingError = '',
   emptyTitle = 'No matching insights',
   emptyDescription = 'Try adjusting your search criteria or topic pill settings.',
 }: InsightsTableProps) {
@@ -108,19 +116,43 @@ export default function InsightsTable({
           </p>
         </div>
 
-        {/* Local Search input */}
-        <div className="relative w-full sm:w-[260px] shrink-0">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-text-secondary" />
-          <input
-            id="insights-table-search-input"
-            type="text"
-            placeholder="Search insights..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-theme-surface-soft border border-theme-border text-theme-text-primary rounded-xl px-3 py-2 pl-9 text-xs focus:border-theme-text-primary/30 outline-none transition-all placeholder-theme-text-secondary"
-          />
+        <div className="flex flex-col sm:flex-row gap-2 w-full xl:w-auto">
+          {onAnalyzeExisting && (
+            <button
+              type="button"
+              onClick={() => void onAnalyzeExisting()}
+              disabled={isAnalyzingExisting}
+              className="px-3.5 py-2 bg-theme-accent text-theme-accent-fg hover:opacity-90 disabled:opacity-50 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 border border-theme-border"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              {isAnalyzingExisting ? 'Analyzing...' : 'Analyze Existing Items'}
+            </button>
+          )}
+
+          {/* Local Search input */}
+          <div className="relative w-full sm:w-[260px] shrink-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-text-secondary" />
+            <input
+              id="insights-table-search-input"
+              type="text"
+              placeholder="Search insights..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-theme-surface-soft border border-theme-border text-theme-text-primary rounded-xl px-3 py-2 pl-9 text-xs focus:border-theme-text-primary/30 outline-none transition-all placeholder-theme-text-secondary"
+            />
+          </div>
         </div>
       </div>
+
+      {(analyzeExistingMessage || analyzeExistingError) && (
+        <div className={`mb-5 rounded-xl border px-4 py-3 text-xs font-semibold ${
+          analyzeExistingError
+            ? 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+            : 'bg-[#12B76A]/10 text-[#12B76A] border-[#12B76A]/15'
+        }`}>
+          {analyzeExistingError || analyzeExistingMessage}
+        </div>
+      )}
 
       {/* 2. Horizontal Topic filter pills */}
       <div className="flex flex-wrap items-center gap-1.5 mb-5 overflow-x-auto pb-1 select-none">
@@ -301,35 +333,52 @@ export default function InsightsTable({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 {/* Left/main 2-column container */}
                 <div className="col-span-1 md:col-span-2 space-y-4">
-                  {/* AI Summary */}
+                  {/* Summary */}
                   <div className="space-y-1.5">
                     <span className="text-[11px] text-theme-text-secondary uppercase tracking-wider flex items-center gap-1 font-bold">
-                      <BookOpen className="w-3.5 h-3.5" /> AI Summary
+                      <BookOpen className="w-3.5 h-3.5" /> {activeArticle.aiStatus === 'summarized' ? 'AI Summary' : 'Parsed Summary'}
                     </span>
                     <p className="bg-theme-surface-soft/60 p-4 rounded-xl font-normal text-xs text-theme-text-primary leading-relaxed border border-theme-border/40 whitespace-pre-line">
-                      {activeArticle.aiSummary || activeArticle.summary}
+                      {activeArticle.aiStatus === 'summarized'
+                        ? activeArticle.aiSummary || activeArticle.summary
+                        : activeArticle.summary}
                     </p>
                   </div>
 
-                  {/* Why It Matters */}
-                  <div className="space-y-1.5">
-                    <span className="text-[11px] text-theme-text-secondary uppercase tracking-wider flex items-center gap-1 font-bold">
-                      <Sparkles className="w-3.5 h-3.5" /> Why It Matters
-                    </span>
-                    <p className="bg-theme-surface-soft/60 p-4 rounded-xl font-normal text-xs text-theme-text-primary leading-relaxed border border-theme-border/40 whitespace-pre-line">
-                      {activeArticle.whyItMatters || 'No AI rationale is available for this parsed item yet.'}
-                    </p>
-                  </div>
+                  {activeArticle.aiStatus === 'summarized' ? (
+                    <>
+                      {/* Why It Matters */}
+                      <div className="space-y-1.5">
+                        <span className="text-[11px] text-theme-text-secondary uppercase tracking-wider flex items-center gap-1 font-bold">
+                          <Sparkles className="w-3.5 h-3.5" /> Why It Matters
+                        </span>
+                        <p className="bg-theme-surface-soft/60 p-4 rounded-xl font-normal text-xs text-theme-text-primary leading-relaxed border border-theme-border/40 whitespace-pre-line">
+                          {activeArticle.whyItMatters || 'No AI rationale is available for this item.'}
+                        </p>
+                      </div>
 
-                  {/* Action Proposal */}
-                  <div className="space-y-1.5">
-                    <span className="text-[11px] text-[#F59E0B] uppercase tracking-wider flex items-center gap-1 font-bold">
-                      <AlertCircle className="w-3.5 h-3.5 text-[#F59E0B]" /> Action Proposal
-                    </span>
-                    <div className="bg-[#F59E0B]/5 border border-[#F59E0B]/15 p-4 rounded-xl font-normal text-xs text-theme-text-primary leading-relaxed">
-                      {activeArticle.actionProposal || activeArticle.actionNote}
+                      {/* Action Proposal */}
+                      <div className="space-y-1.5">
+                        <span className="text-[11px] text-[#F59E0B] uppercase tracking-wider flex items-center gap-1 font-bold">
+                          <AlertCircle className="w-3.5 h-3.5 text-[#F59E0B]" /> Action Proposal
+                        </span>
+                        <div className="bg-[#F59E0B]/5 border border-[#F59E0B]/15 p-4 rounded-xl font-normal text-xs text-theme-text-primary leading-relaxed">
+                          {activeArticle.actionProposal || activeArticle.actionNote}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <span className="text-[11px] text-theme-text-secondary uppercase tracking-wider flex items-center gap-1 font-bold">
+                        <Sparkles className="w-3.5 h-3.5" /> AI Analysis
+                      </span>
+                      <div className="bg-theme-surface-soft/60 p-4 rounded-xl font-normal text-xs text-theme-text-primary leading-relaxed border border-theme-border/40">
+                        {activeArticle.aiStatus === 'failed'
+                          ? 'AI analysis failed for this parsed item.'
+                          : 'AI analysis not generated yet.'}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Right sidebar panel container */}
@@ -340,10 +389,12 @@ export default function InsightsTable({
                       <Globe className="w-3.5 h-3.5" /> Source Information
                     </span>
                     <div className="bg-theme-surface-soft/40 border border-theme-border/40 p-4 rounded-xl space-y-3.5 text-xs text-theme-text-secondary">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-[10px] uppercase font-bold text-theme-text-secondary/80">Signal Type</span>
-                        <strong className="text-theme-text-primary font-bold text-xs">{activeArticle.signalType || 'Other'}</strong>
-                      </div>
+                      {activeArticle.aiStatus === 'summarized' && (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] uppercase font-bold text-theme-text-secondary/80">Signal Type</span>
+                          <strong className="text-theme-text-primary font-bold text-xs">{activeArticle.signalType || 'Other'}</strong>
+                        </div>
+                      )}
 
                       <div className="flex flex-col gap-0.5">
                         <span className="text-[10px] uppercase font-bold text-theme-text-secondary/80">AI Status</span>
@@ -352,7 +403,21 @@ export default function InsightsTable({
                         </span>
                       </div>
 
-                      {activeArticle.relevanceScore !== null && activeArticle.relevanceScore !== undefined && (
+                      {activeArticle.aiStatus === 'failed' && (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] uppercase font-bold text-theme-text-secondary/80">AI Error</span>
+                          <span className="text-rose-500 font-semibold text-xs break-words">
+                            {activeArticle.aiErrorMessage || 'Gemini analysis failed.'}
+                          </span>
+                          {(activeArticle.aiErrorStatus || activeArticle.aiErrorCode) && (
+                            <span className="text-[10px] text-theme-text-secondary font-mono">
+                              {[activeArticle.aiErrorStatus, activeArticle.aiErrorCode].filter(Boolean).join(' / ')}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {activeArticle.aiStatus === 'summarized' && activeArticle.relevanceScore !== null && activeArticle.relevanceScore !== undefined && (
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[10px] uppercase font-bold text-theme-text-secondary/80">Relevance Score</span>
                           <strong className="text-theme-text-primary font-bold text-xs">{activeArticle.relevanceScore}/100</strong>

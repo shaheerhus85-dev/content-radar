@@ -18,6 +18,14 @@
       "use": "@vercel/node"
     },
     {
+      "src": "api/gemini-debug.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/analyze-existing.js",
+      "use": "@vercel/node"
+    },
+    {
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
@@ -37,6 +45,14 @@
     {
       "src": "/api/discover-source",
       "dest": "/api/discover-source.js"
+    },
+    {
+      "src": "/api/gemini-debug",
+      "dest": "/api/gemini-debug.js"
+    },
+    {
+      "src": "/api/analyze-existing",
+      "dest": "/api/analyze-existing.js"
     },
     {
       "src": "/api/admin-debug",

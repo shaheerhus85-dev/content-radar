@@ -78,6 +78,9 @@ export default function App() {
   const [privateItemsLoading, setPrivateItemsLoading] = useState(false);
   const [privateItemsError, setPrivateItemsError] = useState('');
   const [refreshError, setRefreshError] = useState('');
+  const [aiAnalysisMessage, setAiAnalysisMessage] = useState('');
+  const [aiAnalysisError, setAiAnalysisError] = useState('');
+  const [isAnalyzingExisting, setIsAnalyzingExisting] = useState(false);
 
   const [globalSearch, setGlobalSearch] = useState('');
   const [isScanning, setIsScanning] = useState(false);
@@ -123,6 +126,8 @@ export default function App() {
       setPrivateSourcesError('');
       setPrivateItemsError('');
       setRefreshError('');
+      setAiAnalysisMessage('');
+      setAiAnalysisError('');
       setPrivateSourcesLoading(false);
       setPrivateItemsLoading(false);
     }
@@ -248,6 +253,8 @@ export default function App() {
     setPrivateSourcesError('');
     setPrivateItemsError('');
     setRefreshError('');
+    setAiAnalysisMessage('');
+    setAiAnalysisError('');
     setPrivateSourcesLoading(false);
     setPrivateItemsLoading(false);
     setWorkspaceMode('demo');
@@ -454,6 +461,77 @@ export default function App() {
     }, 650);
   };
 
+  const handleAnalyzeExistingItems = async () => {
+    if (!isPrivateWorkspace) {
+      setAiAnalysisMessage('Demo items are already using sample AI insights.');
+      setAiAnalysisError('');
+      return;
+    }
+
+    if (!authUser) {
+      setAiAnalysisError('Sign in before analyzing existing items.');
+      setAiAnalysisMessage('');
+      return;
+    }
+
+    if (isAnalyzingExisting) return;
+
+    setIsAnalyzingExisting(true);
+    setAiAnalysisError('');
+    setAiAnalysisMessage('');
+    setPrivateLogs((prev) => [
+      'Requesting AI analysis for existing parsed items...',
+      ...prev,
+    ]);
+
+    try {
+      const token = await authUser.getIdToken();
+      const response = await fetch('/api/analyze-existing', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ limit: 10 }),
+      });
+      const result = await response.json().catch(() => ({
+        success: false,
+        error: 'Analyze API did not return JSON. Run the app with Vercel dev or deploy to Vercel to execute /api/analyze-existing.',
+      })) as {
+        success?: boolean;
+        error?: string;
+        message?: string;
+        checked?: number;
+        summarized?: number;
+        failed?: number;
+        skipped?: number;
+      };
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Unable to analyze existing items.');
+      }
+
+      const summary = result.message
+        ? `${result.message} ${result.skipped ?? 0} skipped.`
+        : `AI analysis completed. ${result.summarized ?? 0} summarized, ${result.failed ?? 0} failed, ${result.skipped ?? 0} skipped.`;
+
+      setAiAnalysisMessage(summary);
+      setPrivateLogs((prev) => [
+        `Analyze existing complete. Checked ${result.checked ?? 0}; ${result.summarized ?? 0} summarized, ${result.failed ?? 0} failed, ${result.skipped ?? 0} skipped.`,
+        ...prev,
+      ]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to analyze existing items.';
+      setAiAnalysisError(message);
+      setPrivateLogs((prev) => [
+        `Analyze existing failed: ${message}`,
+        ...prev,
+      ]);
+    } finally {
+      setIsAnalyzingExisting(false);
+    }
+  };
+
   const handleResetWorkspace = () => {
     if (isPrivateWorkspace) {
       setPrivateSources([]);
@@ -461,6 +539,8 @@ export default function App() {
       setPrivateLogs([]);
       setPrivateItemsError('');
       setRefreshError('');
+      setAiAnalysisMessage('');
+      setAiAnalysisError('');
       return;
     }
 
@@ -726,6 +806,10 @@ export default function App() {
                     <InsightsTable
                       insights={searchedArticles}
                       onRefreshDemo={handleResetWorkspace}
+                      onAnalyzeExisting={handleAnalyzeExistingItems}
+                      isAnalyzingExisting={isAnalyzingExisting}
+                      analyzeExistingMessage={aiAnalysisMessage}
+                      analyzeExistingError={aiAnalysisError}
                       emptyTitle={isPrivateWorkspace && articles.length === 0 ? 'No insights yet' : undefined}
                       emptyDescription={isPrivateWorkspace && articles.length === 0 ? 'Refresh your sources to fetch the latest updates.' : undefined}
                     />
@@ -752,6 +836,10 @@ export default function App() {
                   <InsightsTable
                     insights={searchedArticles}
                     onRefreshDemo={handleResetWorkspace}
+                    onAnalyzeExisting={handleAnalyzeExistingItems}
+                    isAnalyzingExisting={isAnalyzingExisting}
+                    analyzeExistingMessage={aiAnalysisMessage}
+                    analyzeExistingError={aiAnalysisError}
                     emptyTitle={isPrivateWorkspace && articles.length === 0 ? 'No insights yet' : undefined}
                     emptyDescription={isPrivateWorkspace && articles.length === 0 ? 'Refresh your sources to fetch the latest updates.' : undefined}
                   />

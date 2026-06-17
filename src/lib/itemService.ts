@@ -30,6 +30,10 @@ interface ItemDocument {
   aiStatus?: AiStatus;
   aiModel?: string | null;
   aiUpdatedAt?: Timestamp | null;
+  aiErrorName?: string | null;
+  aiErrorCode?: string | null;
+  aiErrorStatus?: number | null;
+  aiErrorMessage?: string | null;
   keyTakeaway?: string;
   actionNote?: string;
   status?: 'parsed';
@@ -91,6 +95,10 @@ export const subscribeToUserItems = (
           aiStatus: data.aiStatus || 'skipped',
           aiModel: data.aiModel || null,
           aiUpdatedAt: formatTimestamp(data.aiUpdatedAt),
+          aiErrorName: data.aiErrorName || null,
+          aiErrorCode: data.aiErrorCode || null,
+          aiErrorStatus: typeof data.aiErrorStatus === 'number' ? data.aiErrorStatus : null,
+          aiErrorMessage: data.aiErrorMessage || null,
           keyTakeaway: data.keyTakeaway || '',
           actionNote: data.actionNote || data.actionProposal || 'Review this update.',
           status: data.status || 'parsed',

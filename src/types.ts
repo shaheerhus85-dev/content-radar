@@ -73,6 +73,10 @@ export interface ContentItem {
   aiStatus?: AiStatus;
   aiModel?: string | null;
   aiUpdatedAt?: string;
+  aiErrorName?: string | null;
+  aiErrorCode?: string | null;
+  aiErrorStatus?: number | null;
+  aiErrorMessage?: string | null;
   keyTakeaway?: string;
   actionNote: string;
   status?: 'parsed';
