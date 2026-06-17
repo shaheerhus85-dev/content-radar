@@ -15,6 +15,7 @@ interface SourcesPanelProps {
   isLoading?: boolean;
   errorMessage?: string;
   workspaceMode: 'demo' | 'private';
+  sourceItemCounts?: Record<string, number>;
 }
 
 interface DiscoveryCandidate {
@@ -89,6 +90,7 @@ export default function SourcesPanel({
   isLoading = false,
   errorMessage = '',
   workspaceMode,
+  sourceItemCounts = {},
 }: SourcesPanelProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [websiteUrl, setWebsiteUrl] = useState('');
@@ -457,7 +459,7 @@ export default function SourcesPanel({
               <th className="px-5 py-3 ml-2.5">Source Feed</th>
               <th className="px-5 py-3">Type</th>
               <th className="px-5 py-3">Status</th>
-              <th className="px-5 py-3">Parsed Count</th>
+              <th className="px-5 py-3">Saved Items</th>
               <th className="px-5 py-3">Last Checked</th>
               <th className="px-5 py-3 text-right">Delete</th>
             </tr>
@@ -477,13 +479,7 @@ export default function SourcesPanel({
                 </td>
               </tr>
             ) : sources.map((src) => {
-              const simulatedCount = src.name.includes('Google')
-                ? 42
-                : src.name.includes('OpenAI')
-                  ? 38
-                  : src.name.includes('Vercel')
-                    ? 33
-                    : 25;
+              const savedItemCount = sourceItemCounts[src.id] ?? sourceItemCounts[src.name] ?? 0;
 
               return (
                 <tr
@@ -520,7 +516,7 @@ export default function SourcesPanel({
                   </td>
 
                   <td className="px-5 py-4 whitespace-nowrap text-theme-text-primary font-mono font-bold">
-                    {simulatedCount}
+                    {savedItemCount}
                   </td>
 
                   <td className="px-5 py-4 whitespace-nowrap text-theme-text-secondary font-medium">

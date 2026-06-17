@@ -363,6 +363,9 @@ export default function App() {
           sourcesChecked?: number;
           newItems?: number;
           skippedDuplicates?: number;
+          aiSummarized?: number;
+          aiSkipped?: number;
+          aiFailed?: number;
           failedSources?: { sourceName: string; error: string }[];
         };
 
@@ -373,6 +376,7 @@ export default function App() {
         setScanProgress(1);
         setPrivateLogs((prev) => [
           `Refresh complete. Checked ${result.sourcesChecked ?? 0} sources, added ${result.newItems ?? 0} new items, skipped ${result.skippedDuplicates ?? 0} duplicates.`,
+          `AI insights: ${result.aiSummarized ?? 0} summarized, ${result.aiSkipped ?? 0} parsed only, ${result.aiFailed ?? 0} failed.`,
           ...(result.failedSources?.length
             ? [`${result.failedSources.length} sources failed and were skipped.`]
             : []),
@@ -424,9 +428,22 @@ export default function App() {
             ? 'This placeholder confirms the private workspace state is isolated from the public demo data. Real RSS ingestion will be implemented in a later phase.'
             : 'A streamlined guide on how automation tools can parse candidate CV nodes and map relevant skills into clear summaries. Reduces initial screening cycles by 40%.',
           topic: isPrivateWorkspace ? 'Product' : 'Automation',
+          aiSummary: isPrivateWorkspace
+            ? 'This placeholder confirms the private workspace state is isolated from the public demo data.'
+            : 'A streamlined guide on using automation tools to parse candidate CV signals and map relevant skills into clear summaries.',
+          signalType: isPrivateWorkspace ? 'Product Update' : 'Technical Update',
+          whyItMatters: isPrivateWorkspace
+            ? 'It confirms private workspace data stays isolated from public demo content.'
+            : 'It shows how structured automation can reduce repetitive review work and improve decision speed.',
           actionNote: isPrivateWorkspace
             ? 'Connect the upcoming ingestion worker before using this as production content.'
             : 'Implement talent context rules to serve pre-screened summary dossiers.',
+          actionProposal: isPrivateWorkspace
+            ? 'Connect the ingestion worker before using this item as production content.'
+            : 'Review whether the same context rules can improve your own screening workflow.',
+          relevanceScore: isPrivateWorkspace ? 50 : 84,
+          aiStatus: 'summarized',
+          aiModel: 'demo',
           createdAt: new Date().toISOString(),
           isNew: true,
         };
@@ -464,10 +481,24 @@ export default function App() {
     );
   });
 
+  const sourceItemCounts = useMemo(() => {
+    return articles.reduce((counts, article) => {
+      if (article.sourceId) {
+        counts[article.sourceId] = (counts[article.sourceId] || 0) + 1;
+      }
+
+      if (article.sourceName) {
+        counts[article.sourceName] = (counts[article.sourceName] || 0) + 1;
+      }
+
+      return counts;
+    }, {} as Record<string, number>);
+  }, [articles]);
+
   const dashboardCounts = {
-    articles: isPrivateWorkspace ? articles.length : articles.length + 131,
+    articles: articles.length,
     duplicates: isPrivateWorkspace ? 0 : 32,
-    insights: isPrivateWorkspace ? articles.length : 121,
+    insights: articles.filter((article) => article.aiStatus === 'summarized').length,
   };
 
   return (
@@ -650,7 +681,7 @@ export default function App() {
                   <span className="text-[10px] font-bold uppercase tracking-wider text-theme-text-secondary">Private Workspace</span>
                   <h2 className="text-lg font-bold text-theme-text-primary mt-1">Your workspace is ready.</h2>
                   <p className="text-xs text-theme-text-secondary mt-1 max-w-2xl">
-                    New authenticated users start with empty sources and items. Add an RSS feed or sitemap, then refresh sources to fetch parsed updates. AI summaries arrive in a later phase.
+                    New authenticated users start with empty sources and items. Add a website source, then refresh sources to fetch parsed updates and create AI insights when Gemini is configured.
                   </p>
                 </div>
               )}
@@ -687,8 +718,10 @@ export default function App() {
                     </div>
                   )}
 
-                  <MonitoredSourcesSummary sources={sources} />
-
+                  <MonitoredSourcesSummary
+                    sources={sources}
+                    sourceItemCounts={sourceItemCounts}
+                  />
                   <div className="pt-2">
                     <InsightsTable
                       insights={searchedArticles}
@@ -709,6 +742,7 @@ export default function App() {
                     isLoading={isPrivateWorkspace && privateSourcesLoading}
                     errorMessage={isPrivateWorkspace ? privateSourcesError : ''}
                     workspaceMode={workspaceMode}
+                    sourceItemCounts={sourceItemCounts}
                   />
                 </div>
               )}

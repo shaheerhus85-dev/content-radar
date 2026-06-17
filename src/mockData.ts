@@ -39,7 +39,7 @@ export const INITIAL_SOURCES: Source[] = [
   }
 ];
 
-export const INITIAL_ARTICLES: ContentItem[] = [
+const DEMO_ARTICLES: ContentItem[] = [
   {
     id: 'art-1',
     sourceId: 'src-1',
@@ -125,3 +125,14 @@ export const INITIAL_ARTICLES: ContentItem[] = [
     createdAt: '2026-06-10T16:40:00Z'
   }
 ];
+
+export const INITIAL_ARTICLES: ContentItem[] = DEMO_ARTICLES.map((article, index) => ({
+  ...article,
+  aiSummary: article.summary,
+  signalType: article.topic === 'Product' ? 'Product Update' : article.topic === 'SEO' ? 'Marketing Signal' : 'Industry Trend',
+  whyItMatters: article.summary,
+  actionProposal: article.actionNote,
+  relevanceScore: 92 - index,
+  aiStatus: 'summarized',
+  aiModel: 'demo',
+}));

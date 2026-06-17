@@ -15,6 +15,29 @@ export type SourceDiscoveryMethod =
   | 'sitemap'
   | 'fallback';
 
+export type InsightTopic =
+  | 'AI'
+  | 'SEO'
+  | 'Automation'
+  | 'Marketing'
+  | 'Developer Tools'
+  | 'Product'
+  | 'Security'
+  | 'Business'
+  | 'Research'
+  | 'Uncategorized';
+
+export type SignalType =
+  | 'Competitor Update'
+  | 'Product Update'
+  | 'Research'
+  | 'Industry Trend'
+  | 'Marketing Signal'
+  | 'Technical Update'
+  | 'Other';
+
+export type AiStatus = 'summarized' | 'failed' | 'skipped';
+
 export interface Source {
   id: string;
   name: string;
@@ -41,7 +64,15 @@ export interface ContentItem {
   publishedAt?: string;
   rawSnippet?: string;
   summary: string;
-  topic: string;
+  aiSummary?: string;
+  topic: InsightTopic;
+  signalType?: SignalType;
+  whyItMatters?: string;
+  actionProposal?: string;
+  relevanceScore?: number | null;
+  aiStatus?: AiStatus;
+  aiModel?: string | null;
+  aiUpdatedAt?: string;
   keyTakeaway?: string;
   actionNote: string;
   status?: 'parsed';

@@ -41,7 +41,19 @@ export default function InsightsTable({
     }
   }, [activeArticle]);
 
-  const topics = ['All', 'AI', 'SEO', 'Automation', 'Marketing', 'Developer Tools', 'Product'];
+  const topics = [
+    'All',
+    'AI',
+    'SEO',
+    'Automation',
+    'Marketing',
+    'Developer Tools',
+    'Product',
+    'Security',
+    'Business',
+    'Research',
+    'Uncategorized',
+  ];
 
   // Real-time local search and filtering
   const filteredInsights = useMemo(() => {
@@ -49,7 +61,9 @@ export default function InsightsTable({
       const matchSearch =
         item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.sourceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.topic.toLowerCase().includes(searchTerm.toLowerCase());
+        item.topic.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.signalType || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.aiSummary || item.summary).toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchTopic = selectedTopic === 'All' || item.topic === selectedTopic;
 
@@ -60,6 +74,24 @@ export default function InsightsTable({
   // Topic badge color mapper
   const getTopicColor = (topic: string) => {
     return 'bg-theme-surface-soft text-theme-text-secondary border-theme-border/40';
+  };
+
+  const getAiStatusLabel = (item: ContentItem) => {
+    if (item.aiStatus === 'summarized') return 'Summarized';
+    if (item.aiStatus === 'failed') return 'Failed';
+    return 'Parsed only';
+  };
+
+  const getAiStatusClassName = (item: ContentItem) => {
+    if (item.aiStatus === 'summarized') {
+      return 'text-[#12B76A] bg-[#12B76A]/5 dark:bg-[#12B76A]/10 border-[#12B76A]/10';
+    }
+
+    if (item.aiStatus === 'failed') {
+      return 'text-rose-500 bg-rose-500/10 border-rose-500/20';
+    }
+
+    return 'text-theme-text-secondary bg-theme-surface-soft border-theme-border';
   };
 
   return (
@@ -168,7 +200,7 @@ export default function InsightsTable({
                       </div>
                       {/* Short summary one-line preview */}
                       <p className="text-[10.5px] text-theme-text-secondary font-medium leading-none truncate max-w-[220px] md:max-w-xs xl:max-w-md">
-                        {item.summary}
+                        {item.aiSummary || item.summary}
                       </p>
                     </div>
                   </td>
@@ -187,8 +219,8 @@ export default function InsightsTable({
 
                   {/* Status badge */}
                   <td className="px-4 py-2.5 whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#12B76A] bg-[#12B76A]/5 dark:bg-[#12B76A]/10 px-2.5 py-0.5 rounded-full border border-[#12B76A]/10">
-                      <span className="w-1.5 h-1.5 bg-[#12B76A] rounded-full" /> Insights Stable
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${getAiStatusClassName(item)}`}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current" /> {getAiStatusLabel(item)}
                     </span>
                   </td>
 
@@ -269,13 +301,23 @@ export default function InsightsTable({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 {/* Left/main 2-column container */}
                 <div className="col-span-1 md:col-span-2 space-y-4">
-                  {/* Curated Summary */}
+                  {/* AI Summary */}
                   <div className="space-y-1.5">
                     <span className="text-[11px] text-theme-text-secondary uppercase tracking-wider flex items-center gap-1 font-bold">
-                      <BookOpen className="w-3.5 h-3.5" /> Curated Summary
+                      <BookOpen className="w-3.5 h-3.5" /> AI Summary
                     </span>
                     <p className="bg-theme-surface-soft/60 p-4 rounded-xl font-normal text-xs text-theme-text-primary leading-relaxed border border-theme-border/40 whitespace-pre-line">
-                      {activeArticle.summary}
+                      {activeArticle.aiSummary || activeArticle.summary}
+                    </p>
+                  </div>
+
+                  {/* Why It Matters */}
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] text-theme-text-secondary uppercase tracking-wider flex items-center gap-1 font-bold">
+                      <Sparkles className="w-3.5 h-3.5" /> Why It Matters
+                    </span>
+                    <p className="bg-theme-surface-soft/60 p-4 rounded-xl font-normal text-xs text-theme-text-primary leading-relaxed border border-theme-border/40 whitespace-pre-line">
+                      {activeArticle.whyItMatters || 'No AI rationale is available for this parsed item yet.'}
                     </p>
                   </div>
 
@@ -285,7 +327,7 @@ export default function InsightsTable({
                       <AlertCircle className="w-3.5 h-3.5 text-[#F59E0B]" /> Action Proposal
                     </span>
                     <div className="bg-[#F59E0B]/5 border border-[#F59E0B]/15 p-4 rounded-xl font-normal text-xs text-theme-text-primary leading-relaxed">
-                      {activeArticle.actionNote}
+                      {activeArticle.actionProposal || activeArticle.actionNote}
                     </div>
                   </div>
                 </div>
@@ -299,6 +341,25 @@ export default function InsightsTable({
                     </span>
                     <div className="bg-theme-surface-soft/40 border border-theme-border/40 p-4 rounded-xl space-y-3.5 text-xs text-theme-text-secondary">
                       <div className="flex flex-col gap-0.5">
+                        <span className="text-[10px] uppercase font-bold text-theme-text-secondary/80">Signal Type</span>
+                        <strong className="text-theme-text-primary font-bold text-xs">{activeArticle.signalType || 'Other'}</strong>
+                      </div>
+
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[10px] uppercase font-bold text-theme-text-secondary/80">AI Status</span>
+                        <span className={`inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-md border w-fit ${getAiStatusClassName(activeArticle)}`}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-current" /> {getAiStatusLabel(activeArticle)}
+                        </span>
+                      </div>
+
+                      {activeArticle.relevanceScore !== null && activeArticle.relevanceScore !== undefined && (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] uppercase font-bold text-theme-text-secondary/80">Relevance Score</span>
+                          <strong className="text-theme-text-primary font-bold text-xs">{activeArticle.relevanceScore}/100</strong>
+                        </div>
+                      )}
+
+                      <div className="flex flex-col gap-0.5">
                         <span className="text-[10px] uppercase font-bold text-theme-text-secondary/80">Source Name</span>
                         <strong className="text-theme-text-primary font-bold text-xs capitalize">{activeArticle.sourceName}</strong>
                       </div>
@@ -306,7 +367,7 @@ export default function InsightsTable({
                       <div className="flex flex-col gap-0.5">
                         <span className="text-[10px] uppercase font-bold text-theme-text-secondary/80">Reliability Status</span>
                         <span className="inline-flex items-center gap-1 text-[10.5px] font-bold text-[#12B76A] bg-[#12B76A]/10 px-2 py-0.5 rounded-md border border-[#12B76A]/15 w-fit">
-                          <Shield className="w-3 h-3 text-[#12B76A]" /> Active Insight
+                          <Shield className="w-3 h-3 text-[#12B76A]" /> Source Active
                         </span>
                       </div>
 

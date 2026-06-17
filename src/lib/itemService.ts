@@ -5,7 +5,12 @@ import {
   query,
   type Timestamp,
 } from 'firebase/firestore';
-import { ContentItem } from '../types';
+import {
+  ContentItem,
+  type AiStatus,
+  type InsightTopic,
+  type SignalType,
+} from '../types';
 import { db } from './firebase';
 
 interface ItemDocument {
@@ -16,7 +21,15 @@ interface ItemDocument {
   publishedAt?: string | null;
   rawSnippet?: string;
   summary?: string;
-  topic?: string;
+  aiSummary?: string;
+  topic?: InsightTopic;
+  signalType?: SignalType;
+  whyItMatters?: string;
+  actionProposal?: string;
+  relevanceScore?: number | null;
+  aiStatus?: AiStatus;
+  aiModel?: string | null;
+  aiUpdatedAt?: Timestamp | null;
   keyTakeaway?: string;
   actionNote?: string;
   status?: 'parsed';
@@ -69,9 +82,17 @@ export const subscribeToUserItems = (
           publishedAt: formatPublishedAt(data.publishedAt),
           rawSnippet: data.rawSnippet || '',
           summary: data.summary || data.rawSnippet || 'Parsed source update ready for review.',
+          aiSummary: data.aiSummary || '',
           topic: data.topic || 'Uncategorized',
+          signalType: data.signalType || 'Other',
+          whyItMatters: data.whyItMatters || '',
+          actionProposal: data.actionProposal || data.actionNote || 'Review this update.',
+          relevanceScore: typeof data.relevanceScore === 'number' ? data.relevanceScore : null,
+          aiStatus: data.aiStatus || 'skipped',
+          aiModel: data.aiModel || null,
+          aiUpdatedAt: formatTimestamp(data.aiUpdatedAt),
           keyTakeaway: data.keyTakeaway || '',
-          actionNote: data.actionNote || 'Review this update.',
+          actionNote: data.actionNote || data.actionProposal || 'Review this update.',
           status: data.status || 'parsed',
           createdAt: formatTimestamp(data.createdAt),
           updatedAt: formatTimestamp(data.updatedAt),

@@ -17,13 +17,15 @@ export default function StatsGrid({
   articles = []
 }: StatsGridProps) {
 
-  // Dynamic topic mix calculations based on articles
-  const topicCounts = articles.reduce((acc, curr) => {
+  const summarizedArticles = articles.filter((article) => article.aiStatus === 'summarized');
+
+  // Dynamic topic mix calculations based on AI-summarized articles
+  const topicCounts = summarizedArticles.reduce((acc, curr) => {
     acc[curr.topic] = (acc[curr.topic] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const totalTopicsCount = articles.length;
+  const totalTopicsCount = summarizedArticles.length;
   const sortedTopics = Object.keys(topicCounts).map((topic, index) => {
     const count = topicCounts[topic];
     const percentage = Math.round((count / totalTopicsCount) * 100);
@@ -78,7 +80,7 @@ export default function StatsGrid({
       id: 'stat-insights',
       label: 'Insights',
       value: insightsCount,
-      helper: 'Summaries created',
+      helper: 'AI summaries created',
       icon: Sparkles,
       color: 'text-theme-text-primary'
     }
@@ -134,7 +136,7 @@ export default function StatsGrid({
               <span className="text-[14px] font-semibold">Topic Mix</span>
             </div>
             <p className="text-[12px] text-theme-text-secondary mt-1">
-              Category ratio in articles
+              Category ratio in AI insights
             </p>
           </div>
 
@@ -169,7 +171,7 @@ export default function StatsGrid({
               </svg>
               <div className="absolute flex flex-col items-center justify-center text-center">
                 <span className="text-[17px] font-bold text-theme-text-primary leading-none">{totalTopicsCount}</span>
-                <span className="text-[9px] text-theme-text-secondary font-bold uppercase tracking-wider mt-0.5">Posts</span>
+                <span className="text-[9px] text-theme-text-secondary font-bold uppercase tracking-wider mt-0.5">AI Topics</span>
               </div>
             </div>
           </div>

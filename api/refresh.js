@@ -3,6 +3,40 @@ import { parseFeedXml } from './lib/feedParser.js';
 
 const MAX_ITEMS_PER_SOURCE = 10;
 const FETCH_TIMEOUT_MS = 15_000;
+const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_TIMEOUT_MS = 20_000;
+
+const TOPICS = new Set([
+  'AI',
+  'SEO',
+  'Automation',
+  'Marketing',
+  'Developer Tools',
+  'Product',
+  'Security',
+  'Business',
+  'Research',
+  'Uncategorized',
+]);
+
+const SIGNAL_TYPES = new Set([
+  'Competitor Update',
+  'Product Update',
+  'Research',
+  'Industry Trend',
+  'Marketing Signal',
+  'Technical Update',
+  'Other',
+]);
+
+const PURPOSE_GUIDANCE = {
+  competitor: 'Focus on positioning, product strategy, pricing or feature changes, launches, and messaging signals.',
+  content: 'Focus on useful content themes, audience needs, recurring subjects, and editorial opportunities.',
+  product: 'Focus on product changes, releases, roadmap direction, feature direction, and user impact.',
+  seo: 'Focus on topics, content angles, search intent, keyword-adjacent opportunities, and article ideas.',
+  research: 'Focus on trends, insights, market signals, evidence, and implications.',
+  custom: 'Focus on practical business relevance and what changed.',
+};
 
 const getBearerToken = (authorizationHeader) => {
   const header = Array.isArray(authorizationHeader)
@@ -74,6 +108,153 @@ const summarizeRawSnippet = (rawSnippet) => {
   if (!rawSnippet) return 'Parsed source update ready for review.';
   return rawSnippet.length > 260 ? `${rawSnippet.slice(0, 257).trim()}...` : rawSnippet;
 };
+
+const clampText = (value, maxLength = 1400) => {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 3).trim()}...`;
+};
+
+const clampScore = (score) => {
+  const parsedScore = Number(score);
+  if (!Number.isFinite(parsedScore)) return 50;
+  return Math.max(1, Math.min(100, Math.round(parsedScore)));
+};
+
+const normalizeAiInsight = (rawInsight, fallbackSummary) => {
+  const topic = TOPICS.has(rawInsight?.topic) ? rawInsight.topic : 'Uncategorized';
+  const signalType = SIGNAL_TYPES.has(rawInsight?.signalType) ? rawInsight.signalType : 'Other';
+
+  return {
+    aiSummary: clampText(rawInsight?.aiSummary, 420) || fallbackSummary,
+    topic,
+    signalType,
+    whyItMatters: clampText(rawInsight?.whyItMatters, 520) || 'This update may affect positioning, planning, or follow-up research.',
+    actionProposal: clampText(rawInsight?.actionProposal, 520) || 'Review the source update and decide whether it needs follow-up.',
+    relevanceScore: clampScore(rawInsight?.relevanceScore),
+  };
+};
+
+const extractGeminiText = (responseBody) => (
+  responseBody?.candidates?.[0]?.content?.parts
+    ?.map((part) => part.text || '')
+    .join('')
+    .trim() || ''
+);
+
+const buildGeminiPrompt = ({ item, source, sourceName, fallbackSummary }) => {
+  const purpose = source.purpose || 'custom';
+  const sourceType = source.type || 'rss';
+
+  return [
+    'You are Content Radar, an analyst that turns parsed source updates into concise business insights.',
+    'Return only strict JSON with these fields:',
+    '{"aiSummary":"short readable summary","topic":"AI | SEO | Automation | Marketing | Developer Tools | Product | Security | Business | Research | Uncategorized","signalType":"Competitor Update | Product Update | Research | Industry Trend | Marketing Signal | Technical Update | Other","whyItMatters":"why this update matters","actionProposal":"what the user should do next","relevanceScore":1}',
+    PURPOSE_GUIDANCE[purpose] || PURPOSE_GUIDANCE.custom,
+    '',
+    `Source name: ${sourceName}`,
+    `Source purpose: ${purpose}`,
+    `Source type: ${sourceType}`,
+    `Published date: ${item.publishedAt || 'Unknown'}`,
+    `Item title: ${item.title || 'Untitled update'}`,
+    `Item url: ${item.url || ''}`,
+    `Excerpt or content: ${fallbackSummary}`,
+  ].join('\n');
+};
+
+const generateGeminiInsight = async ({ item, source, sourceName, fallbackSummary }) => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: buildGeminiPrompt({
+                item,
+                source,
+                sourceName,
+                fallbackSummary: clampText(fallbackSummary, 1400),
+              }),
+            }],
+          }],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 700,
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: 'OBJECT',
+              properties: {
+                aiSummary: { type: 'STRING' },
+                topic: {
+                  type: 'STRING',
+                  enum: Array.from(TOPICS),
+                },
+                signalType: {
+                  type: 'STRING',
+                  enum: Array.from(SIGNAL_TYPES),
+                },
+                whyItMatters: { type: 'STRING' },
+                actionProposal: { type: 'STRING' },
+                relevanceScore: {
+                  type: 'INTEGER',
+                  minimum: 1,
+                  maximum: 100,
+                },
+              },
+              required: [
+                'aiSummary',
+                'topic',
+                'signalType',
+                'whyItMatters',
+                'actionProposal',
+                'relevanceScore',
+              ],
+            },
+          },
+        }),
+        signal: controller.signal,
+      },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      throw new Error(`Gemini request failed with ${response.status}${errorText ? `: ${errorText.slice(0, 180)}` : ''}`);
+    }
+
+    const responseBody = await response.json();
+    const responseText = extractGeminiText(responseBody);
+    if (!responseText) {
+      throw new Error('Gemini returned an empty response.');
+    }
+
+    return normalizeAiInsight(JSON.parse(responseText), fallbackSummary);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
+const buildSkippedAiFields = () => ({
+  aiStatus: 'skipped',
+  aiModel: null,
+  aiUpdatedAt: null,
+});
+
+const buildFailedAiFields = (FieldValue) => ({
+  aiStatus: 'failed',
+  aiModel: GEMINI_MODEL,
+  aiUpdatedAt: FieldValue.serverTimestamp(),
+});
 
 const getMaxItemsPerRefresh = (source) => {
   const configuredMax = Number(source.maxItemsPerRefresh);
@@ -154,6 +335,9 @@ export default async function handler(req, res) {
 
     let newItems = 0;
     let skippedDuplicates = 0;
+    let aiSummarized = 0;
+    let aiSkipped = 0;
+    let aiFailed = 0;
     const failedSources = [];
 
     for (const sourceDoc of sourcesSnapshot.docs) {
@@ -194,6 +378,41 @@ export default async function handler(req, res) {
             continue;
           }
 
+          const fallbackSummary = summarizeRawSnippet(item.rawSnippet);
+          let aiFields = buildSkippedAiFields();
+
+          if (process.env.GEMINI_API_KEY) {
+            try {
+              const aiInsight = await generateGeminiInsight({
+                item,
+                source,
+                sourceName,
+                fallbackSummary,
+              });
+
+              if (aiInsight) {
+                aiFields = {
+                  aiSummary: aiInsight.aiSummary,
+                  topic: aiInsight.topic,
+                  signalType: aiInsight.signalType,
+                  whyItMatters: aiInsight.whyItMatters,
+                  actionProposal: aiInsight.actionProposal,
+                  relevanceScore: aiInsight.relevanceScore,
+                  aiStatus: 'summarized',
+                  aiModel: GEMINI_MODEL,
+                  aiUpdatedAt: FieldValue.serverTimestamp(),
+                };
+                aiSummarized++;
+              }
+            } catch (error) {
+              console.error(`Gemini insight generation failed for ${item.url}.`, error);
+              aiFields = buildFailedAiFields(FieldValue);
+              aiFailed++;
+            }
+          } else {
+            aiSkipped++;
+          }
+
           await itemRef.set({
             sourceId: sourceDoc.id,
             sourceName,
@@ -201,10 +420,15 @@ export default async function handler(req, res) {
             url: item.url,
             publishedAt: item.publishedAt,
             rawSnippet: item.rawSnippet,
-            summary: summarizeRawSnippet(item.rawSnippet),
-            topic: 'Uncategorized',
+            summary: aiFields.aiSummary || fallbackSummary,
+            topic: aiFields.topic || 'Uncategorized',
             keyTakeaway: '',
-            actionNote: 'Review this update.',
+            actionNote: aiFields.actionProposal || 'Review this update.',
+            signalType: aiFields.signalType || 'Other',
+            whyItMatters: aiFields.whyItMatters || '',
+            actionProposal: aiFields.actionProposal || '',
+            relevanceScore: aiFields.relevanceScore || null,
+            ...aiFields,
             status: 'parsed',
             createdAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
@@ -231,6 +455,9 @@ export default async function handler(req, res) {
       sourcesChecked: sourcesSnapshot.size,
       newItems,
       skippedDuplicates,
+      aiSummarized,
+      aiSkipped,
+      aiFailed,
       failedSources,
     });
   } catch (error) {

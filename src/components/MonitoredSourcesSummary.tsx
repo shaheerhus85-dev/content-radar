@@ -3,21 +3,22 @@ import { Source } from '../types';
 
 interface MonitoredSourcesSummaryProps {
   sources: Source[];
+  sourceItemCounts?: Record<string, number>;
 }
 
-export default function MonitoredSourcesSummary({ sources }: MonitoredSourcesSummaryProps) {
-  const getParsedItems = (source: Source) => {
-    if (source.name.includes('Google')) return 42;
-    if (source.name.includes('OpenAI')) return 38;
-    if (source.name.includes('Vercel')) return 33;
-    return source.type === 'sitemap' ? 32 : 25;
-  };
-
+export default function MonitoredSourcesSummary({
+  sources,
+  sourceItemCounts = {},
+}: MonitoredSourcesSummaryProps) {
   const getSourceTypeLabel = (source: Source) => {
     if (source.type === 'sitemap') return 'Sitemap fallback';
     if (source.type === 'webpage') return 'Page watch';
     return 'Feed stream';
   };
+
+  const getSavedItemCount = (source: Source) => (
+    sourceItemCounts[source.id] ?? sourceItemCounts[source.name] ?? 0
+  );
 
   return (
     <div
@@ -44,7 +45,7 @@ export default function MonitoredSourcesSummary({ sources }: MonitoredSourcesSum
               <th className="px-4 py-2.5 rounded-l-lg">Source</th>
               <th className="px-4 py-2.5">Type</th>
               <th className="px-4 py-2.5">Status</th>
-              <th className="px-4 py-2.5 text-center">Items</th>
+              <th className="px-4 py-2.5 text-center">Saved Items</th>
               <th className="px-4 py-2.5 rounded-r-lg">Last Checked</th>
             </tr>
           </thead>
@@ -80,7 +81,7 @@ export default function MonitoredSourcesSummary({ sources }: MonitoredSourcesSum
                 
                 {/* Items column */}
                 <td className="px-4 py-3 text-center font-mono font-semibold text-theme-text-secondary">
-                  {getParsedItems(src)}
+                  {getSavedItemCount(src)}
                 </td>
                 
                 {/* Last Checked relative label */}
