@@ -78,9 +78,9 @@ export default function StatsGrid({
     },
     {
       id: 'stat-insights',
-      label: 'Insights',
+      label: insightsCount === 0 ? 'AI summaries ready' : 'Insights',
       value: insightsCount,
-      helper: 'AI summaries created',
+      helper: insightsCount === 0 ? 'Parsed items can be analyzed later' : 'AI summaries created',
       icon: Sparkles,
       color: 'text-theme-text-primary'
     }

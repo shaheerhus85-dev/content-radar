@@ -7,7 +7,9 @@ interface InsightsTableProps {
   insights: ContentItem[];
   onRefreshDemo: () => void;
   onAnalyzeExisting?: () => void | Promise<void>;
+  onResetAiFailedItems?: () => void | Promise<void>;
   isAnalyzingExisting?: boolean;
+  isResettingAiFailures?: boolean;
   analyzeExistingMessage?: string;
   analyzeExistingError?: string;
   emptyTitle?: string;
@@ -18,7 +20,9 @@ export default function InsightsTable({
   insights,
   onRefreshDemo,
   onAnalyzeExisting,
+  onResetAiFailedItems,
   isAnalyzingExisting = false,
+  isResettingAiFailures = false,
   analyzeExistingMessage = '',
   analyzeExistingError = '',
   emptyTitle = 'No matching insights',
@@ -84,23 +88,39 @@ export default function InsightsTable({
     return 'bg-theme-surface-soft text-theme-text-secondary border-theme-border/40';
   };
 
+  const getEffectiveAiStatus = (item: ContentItem) => {
+    if (
+      item.aiStatus === 'failed'
+      && (
+        item.aiErrorStatus === 429
+        || String(item.aiErrorCode || '').toUpperCase() === 'RESOURCE_EXHAUSTED'
+      )
+    ) {
+      return 'quota_limited';
+    }
+
+    return item.aiStatus || 'skipped';
+  };
+
   const getAiStatusLabel = (item: ContentItem) => {
-    if (item.aiStatus === 'summarized') return 'Summarized';
-    if (item.aiStatus === 'quota_limited') return 'AI queued';
-    if (item.aiStatus === 'failed') return 'Failed';
+    const effectiveStatus = getEffectiveAiStatus(item);
+    if (effectiveStatus === 'summarized') return 'Summarized';
+    if (effectiveStatus === 'quota_limited') return 'AI queued';
+    if (effectiveStatus === 'failed') return 'Failed';
     return 'Parsed only';
   };
 
   const getAiStatusClassName = (item: ContentItem) => {
-    if (item.aiStatus === 'summarized') {
+    const effectiveStatus = getEffectiveAiStatus(item);
+    if (effectiveStatus === 'summarized') {
       return 'text-[#12B76A] bg-[#12B76A]/5 dark:bg-[#12B76A]/10 border-[#12B76A]/10';
     }
 
-    if (item.aiStatus === 'failed') {
+    if (effectiveStatus === 'failed') {
       return 'text-rose-500 bg-rose-500/10 border-rose-500/20';
     }
 
-    if (item.aiStatus === 'quota_limited') {
+    if (effectiveStatus === 'quota_limited') {
       return 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/20';
     }
 
@@ -108,11 +128,16 @@ export default function InsightsTable({
   };
 
   const getFriendlyAiErrorMessage = (item: ContentItem) => {
-    if (item.aiStatus === 'quota_limited') {
-      return 'AI quota reached. Parsed items are saved and can be analyzed later.';
+    const effectiveStatus = getEffectiveAiStatus(item);
+    if (effectiveStatus === 'quota_limited') {
+      return 'AI analysis is queued. Parsed content is saved and can be analyzed later.';
     }
 
-    return item.aiErrorMessage || 'Gemini analysis failed.';
+    if (effectiveStatus === 'failed') {
+      return 'AI analysis could not be completed. Parsed content is still available.';
+    }
+
+    return 'AI analysis not generated yet.';
   };
 
   return (
@@ -138,7 +163,17 @@ export default function InsightsTable({
               className="px-3.5 py-2 bg-theme-accent text-theme-accent-fg hover:opacity-90 disabled:opacity-50 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 border border-theme-border"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              {isAnalyzingExisting ? 'Analyzing...' : 'Analyze Existing Items'}
+              {isAnalyzingExisting ? 'Analyzing...' : 'Analyze 1 Item'}
+            </button>
+          )}
+          {onResetAiFailedItems && (
+            <button
+              type="button"
+              onClick={() => void onResetAiFailedItems()}
+              disabled={isResettingAiFailures}
+              className="px-3.5 py-2 bg-theme-surface-soft text-theme-text-primary hover:bg-theme-border/40 disabled:opacity-50 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 border border-theme-border"
+            >
+              {isResettingAiFailures ? 'Resetting...' : 'Reset AI Failed Items'}
             </button>
           )}
 
@@ -354,16 +389,16 @@ export default function InsightsTable({
                   {/* Summary */}
                   <div className="space-y-1.5">
                     <span className="text-[11px] text-theme-text-secondary uppercase tracking-wider flex items-center gap-1 font-bold">
-                      <BookOpen className="w-3.5 h-3.5" /> {activeArticle.aiStatus === 'summarized' ? 'AI Summary' : 'Parsed Summary'}
+                      <BookOpen className="w-3.5 h-3.5" /> {getEffectiveAiStatus(activeArticle) === 'summarized' ? 'AI Summary' : 'Parsed Summary'}
                     </span>
                     <p className="bg-theme-surface-soft/60 p-4 rounded-xl font-normal text-xs text-theme-text-primary leading-relaxed border border-theme-border/40 whitespace-pre-line">
-                      {activeArticle.aiStatus === 'summarized'
+                      {getEffectiveAiStatus(activeArticle) === 'summarized'
                         ? activeArticle.aiSummary || activeArticle.summary
                         : activeArticle.summary}
                     </p>
                   </div>
 
-                  {activeArticle.aiStatus === 'summarized' ? (
+                  {getEffectiveAiStatus(activeArticle) === 'summarized' ? (
                     <>
                       {/* Why It Matters */}
                       <div className="space-y-1.5">
@@ -391,11 +426,7 @@ export default function InsightsTable({
                         <Sparkles className="w-3.5 h-3.5" /> AI Analysis
                       </span>
                       <div className="bg-theme-surface-soft/60 p-4 rounded-xl font-normal text-xs text-theme-text-primary leading-relaxed border border-theme-border/40">
-                        {activeArticle.aiStatus === 'quota_limited'
-                          ? 'AI quota reached. Parsed items are saved and can be analyzed later.'
-                          : activeArticle.aiStatus === 'failed'
-                          ? 'AI analysis failed for this parsed item.'
-                          : 'AI analysis not generated yet.'}
+                        {getFriendlyAiErrorMessage(activeArticle)}
                       </div>
                     </div>
                   )}
@@ -409,7 +440,7 @@ export default function InsightsTable({
                       <Globe className="w-3.5 h-3.5" /> Source Information
                     </span>
                     <div className="bg-theme-surface-soft/40 border border-theme-border/40 p-4 rounded-xl space-y-3.5 text-xs text-theme-text-secondary">
-                      {activeArticle.aiStatus === 'summarized' && (
+                      {getEffectiveAiStatus(activeArticle) === 'summarized' && (
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[10px] uppercase font-bold text-theme-text-secondary/80">Signal Type</span>
                           <strong className="text-theme-text-primary font-bold text-xs">{activeArticle.signalType || 'Other'}</strong>
@@ -432,21 +463,16 @@ export default function InsightsTable({
                         </div>
                       )}
 
-                      {(activeArticle.aiStatus === 'failed' || activeArticle.aiStatus === 'quota_limited') && (
+                      {(getEffectiveAiStatus(activeArticle) === 'failed' || getEffectiveAiStatus(activeArticle) === 'quota_limited') && (
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-[10px] uppercase font-bold text-theme-text-secondary/80">AI Error</span>
-                          <span className="text-rose-500 font-semibold text-xs break-words">
+                          <span className="text-[10px] uppercase font-bold text-theme-text-secondary/80">AI Note</span>
+                          <span className="text-theme-text-primary font-semibold text-xs break-words">
                             {getFriendlyAiErrorMessage(activeArticle)}
                           </span>
-                          {(activeArticle.aiErrorStatus || activeArticle.aiErrorCode) && (
-                            <span className="text-[10px] text-theme-text-secondary font-mono">
-                              {[activeArticle.aiErrorStatus, activeArticle.aiErrorCode].filter(Boolean).join(' / ')}
-                            </span>
-                          )}
                         </div>
                       )}
 
-                      {activeArticle.aiStatus === 'summarized' && activeArticle.relevanceScore !== null && activeArticle.relevanceScore !== undefined && (
+                      {getEffectiveAiStatus(activeArticle) === 'summarized' && activeArticle.relevanceScore !== null && activeArticle.relevanceScore !== undefined && (
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[10px] uppercase font-bold text-theme-text-secondary/80">Relevance Score</span>
                           <strong className="text-theme-text-primary font-bold text-xs">{activeArticle.relevanceScore}/100</strong>

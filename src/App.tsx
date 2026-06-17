@@ -8,7 +8,7 @@ import {
   subscribeToUserSources,
   type SourceInput,
 } from './lib/sourceService';
-import { subscribeToUserItems } from './lib/itemService';
+import { resetQuotaFailedItems, subscribeToUserItems } from './lib/itemService';
 import { loadSampleWorkspace } from './lib/sampleWorkspaceService';
 import Sidebar from './components/Sidebar';
 import StatsGrid from './components/StatsGrid';
@@ -87,6 +87,7 @@ export default function App() {
   const [sampleWorkspaceError, setSampleWorkspaceError] = useState('');
   const [isLoadingSampleWorkspace, setIsLoadingSampleWorkspace] = useState(false);
   const [openAddSourceSignal, setOpenAddSourceSignal] = useState(0);
+  const [isResettingAiFailures, setIsResettingAiFailures] = useState(false);
 
   const [globalSearch, setGlobalSearch] = useState('');
   const [isScanning, setIsScanning] = useState(false);
@@ -508,6 +509,19 @@ export default function App() {
     setOpenAddSourceSignal((current) => current + 1);
   };
 
+  const getFriendlyAiUiMessage = (message: string) => {
+    const normalized = message.toUpperCase();
+    if (
+      normalized.includes('RESOURCE_EXHAUSTED')
+      || normalized.includes('429')
+      || normalized.includes('QUOTA')
+    ) {
+      return 'AI analysis is queued. Parsed content is saved and can be analyzed later.';
+    }
+
+    return message;
+  };
+
   const handleAnalyzeExistingItems = async () => {
     if (!isPrivateWorkspace) {
       setAiAnalysisMessage('Demo items are already using sample AI insights.');
@@ -569,7 +583,7 @@ export default function App() {
         ...prev,
       ]);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to analyze existing items.';
+      const message = getFriendlyAiUiMessage(error instanceof Error ? error.message : 'Unable to analyze existing items.');
       setAiAnalysisError(message);
       setPrivateLogs((prev) => [
         `Analyze existing failed: ${message}`,
@@ -577,6 +591,44 @@ export default function App() {
       ]);
     } finally {
       setIsAnalyzingExisting(false);
+    }
+  };
+
+  const handleResetAiFailedItems = async () => {
+    if (!isPrivateWorkspace) {
+      setAiAnalysisMessage('Demo items are already using sample AI insights.');
+      setAiAnalysisError('');
+      return;
+    }
+
+    if (!authUser) {
+      setAiAnalysisError('Sign in before resetting AI failed items.');
+      setAiAnalysisMessage('');
+      return;
+    }
+
+    if (isResettingAiFailures) return;
+
+    setIsResettingAiFailures(true);
+    setAiAnalysisError('');
+    setAiAnalysisMessage('');
+
+    try {
+      const updated = await resetQuotaFailedItems(authUser.uid);
+      setAiAnalysisMessage(`Reset AI failed items. ${updated} quota-limited items are now queued.`);
+      setPrivateLogs((prev) => [
+        `Reset AI failed items: ${updated} quota-limited items queued.`,
+        ...prev,
+      ]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to reset AI failed items.';
+      setAiAnalysisError(message);
+      setPrivateLogs((prev) => [
+        `Reset AI failed items failed: ${message}`,
+        ...prev,
+      ]);
+    } finally {
+      setIsResettingAiFailures(false);
     }
   };
 
@@ -630,6 +682,15 @@ export default function App() {
     duplicates: isPrivateWorkspace ? 0 : 32,
     insights: articles.filter((article) => article.aiStatus === 'summarized').length,
   };
+  const shouldShowZeroInsightsNotice = isPrivateWorkspace
+    && (dashboardCounts.articles > 0 || sources.length > 0)
+    && dashboardCounts.insights === 0;
+  const zeroInsightsNoticeTitle = dashboardCounts.articles > 0
+    ? 'Parsed items are ready.'
+    : 'Sample insights are available.';
+  const zeroInsightsNoticeBody = dashboardCounts.articles > 0
+    ? 'Load sample insights or analyze items when AI quota is available.'
+    : 'Load sample insights or add parsed items, then analyze when AI quota is available.';
 
   return (
     <div className="min-h-screen bg-theme-bg text-theme-text-primary flex flex-col font-sans antialiased overflow-x-hidden relative transition-colors duration-200">
@@ -863,6 +924,46 @@ export default function App() {
                     articles={searchedArticles}
                   />
 
+                  {shouldShowZeroInsightsNotice && (
+                    <div className="bg-theme-surface border border-theme-border rounded-xl p-5 shadow-sm text-left">
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-theme-text-secondary">AI analysis status</span>
+                          <h2 className="text-sm font-bold text-theme-text-primary mt-1">{zeroInsightsNoticeTitle}</h2>
+                          <p className="text-xs text-theme-text-secondary mt-1">
+                            {zeroInsightsNoticeBody}
+                          </p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void handleLoadSampleWorkspace()}
+                            disabled={isLoadingSampleWorkspace}
+                            className="px-4 py-2 bg-theme-accent text-theme-accent-fg hover:opacity-90 disabled:opacity-50 font-bold text-xs rounded-xl border border-theme-border"
+                          >
+                            {isLoadingSampleWorkspace ? 'Loading Sample...' : 'Load Sample Workspace'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleAnalyzeExistingItems()}
+                            disabled={isAnalyzingExisting}
+                            className="px-4 py-2 bg-theme-surface-soft hover:bg-theme-border/40 disabled:opacity-50 text-theme-text-primary text-xs font-bold rounded-xl border border-theme-border"
+                          >
+                            {isAnalyzingExisting ? 'Analyzing...' : 'Analyze 1 Item'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void handleResetAiFailedItems()}
+                            disabled={isResettingAiFailures}
+                            className="px-4 py-2 bg-theme-surface-soft hover:bg-theme-border/40 disabled:opacity-50 text-theme-text-primary text-xs font-bold rounded-xl border border-theme-border"
+                          >
+                            {isResettingAiFailures ? 'Resetting...' : 'Reset AI Failed Items'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <AnalyticsCharts
                     articles={searchedArticles}
                     isScanning={isScanning}
@@ -894,7 +995,9 @@ export default function App() {
                       insights={searchedArticles}
                       onRefreshDemo={handleResetWorkspace}
                       onAnalyzeExisting={handleAnalyzeExistingItems}
+                      onResetAiFailedItems={handleResetAiFailedItems}
                       isAnalyzingExisting={isAnalyzingExisting}
+                      isResettingAiFailures={isResettingAiFailures}
                       analyzeExistingMessage={aiAnalysisMessage}
                       analyzeExistingError={aiAnalysisError}
                       emptyTitle={isPrivateWorkspace && articles.length === 0 ? 'No insights yet' : undefined}
@@ -925,7 +1028,9 @@ export default function App() {
                     insights={searchedArticles}
                     onRefreshDemo={handleResetWorkspace}
                     onAnalyzeExisting={handleAnalyzeExistingItems}
+                    onResetAiFailedItems={handleResetAiFailedItems}
                     isAnalyzingExisting={isAnalyzingExisting}
+                    isResettingAiFailures={isResettingAiFailures}
                     analyzeExistingMessage={aiAnalysisMessage}
                     analyzeExistingError={aiAnalysisError}
                     emptyTitle={isPrivateWorkspace && articles.length === 0 ? 'No insights yet' : undefined}

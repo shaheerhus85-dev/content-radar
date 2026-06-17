@@ -1,9 +1,12 @@
 import {
   collection,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
+  serverTimestamp,
   type Timestamp,
+  writeBatch,
 } from 'firebase/firestore';
 import {
   ContentItem,
@@ -116,4 +119,36 @@ export const subscribeToUserItems = (
     },
     onError,
   );
+};
+
+export const resetQuotaFailedItems = async (uid: string) => {
+  const firestore = requireFirestore();
+  const itemsSnapshot = await getDocs(collection(firestore, 'users', uid, 'items'));
+  const batch = writeBatch(firestore);
+  let updated = 0;
+
+  itemsSnapshot.docs.forEach((itemDoc) => {
+    const data = itemDoc.data() as ItemDocument;
+    const isQuotaFailure = data.aiStatus === 'failed'
+      && (
+        data.aiErrorStatus === 429
+        || String(data.aiErrorCode || '').toUpperCase() === 'RESOURCE_EXHAUSTED'
+      );
+
+    if (!isQuotaFailure) return;
+
+    batch.update(itemDoc.ref, {
+      aiStatus: 'quota_limited',
+      aiErrorMessage: 'AI analysis is queued. Parsed content is saved and can be analyzed later.',
+      aiUpdatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    updated++;
+  });
+
+  if (updated > 0) {
+    await batch.commit();
+  }
+
+  return updated;
 };
