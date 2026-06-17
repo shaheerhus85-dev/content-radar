@@ -4,6 +4,9 @@
   "version": "0.0.0",
   "description": "Frontend UI prototype for an RSS and sitemap content monitoring dashboard.",
   "type": "module",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
@@ -13,7 +16,7 @@
   "dependencies": {
     "fast-xml-parser": "^5.9.0",
     "firebase": "^12.14.0",
-    "firebase-admin": "^14.0.0",
+    "firebase-admin": "^13.10.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "react": "^19.0.1",
