@@ -4,9 +4,8 @@ import {
   buildFailedAiFields,
   buildSkippedAiFields,
   buildSummarizedAiFields,
-  generateGeminiInsight,
-  hasGeminiApiKey,
-} from './lib/geminiInsights.js';
+  generateInsightForItem,
+} from './lib/aiInsightService.js';
 
 const MAX_ITEMS_PER_SOURCE = 10;
 const FETCH_TIMEOUT_MS = 15_000;
@@ -165,6 +164,7 @@ export default async function handler(req, res) {
     let aiSkipped = 0;
     let aiFailed = 0;
     let aiQuotaLimited = 0;
+    let aiCached = 0;
     const failedSources = [];
 
     for (const sourceDoc of sourcesSnapshot.docs) {
@@ -208,35 +208,39 @@ export default async function handler(req, res) {
           const fallbackSummary = summarizeRawSnippet(item.rawSnippet);
           let aiFields = buildSkippedAiFields();
 
-          if (hasGeminiApiKey()) {
-            try {
-              const aiInsight = await generateGeminiInsight({
-                item,
-                source,
-                sourceName,
-                fallbackSummary,
-              });
+          const aiResult = await generateInsightForItem({
+            item,
+            source,
+            sourceName,
+            fallbackSummary,
+            adminDb,
+            FieldValue,
+          });
 
-              if (aiInsight) {
-                aiFields = buildSummarizedAiFields(FieldValue, aiInsight);
-                aiSummarized++;
-              }
-            } catch (error) {
-              aiFields = buildFailedAiFields(FieldValue, error);
-              console.error(`Gemini insight generation failed for ${item.url}.`, {
-                name: aiFields.aiErrorName,
-                code: aiFields.aiErrorCode,
-                status: aiFields.aiErrorStatus,
-                message: aiFields.aiErrorMessage,
-              });
-              if (aiFields.aiStatus === 'quota_limited') {
-                aiQuotaLimited++;
-              } else {
-                aiFailed++;
-              }
+          if (aiResult.status === 'summarized') {
+            aiFields = buildSummarizedAiFields(FieldValue, aiResult);
+            if (aiResult.fromCache) {
+              aiCached++;
+            } else {
+              aiSummarized++;
             }
-          } else {
+          } else if (aiResult.status === 'skipped') {
             aiSkipped++;
+          } else {
+            aiFields = buildFailedAiFields(FieldValue, aiResult);
+            console.error(`AI insight generation failed for ${item.url}.`, {
+              status: aiFields.aiStatus,
+              provider: aiFields.aiProvider,
+              name: aiFields.aiErrorName,
+              code: aiFields.aiErrorCode,
+              httpStatus: aiFields.aiErrorStatus,
+              message: aiFields.aiErrorMessage,
+            });
+            if (aiFields.aiStatus === 'quota_limited') {
+              aiQuotaLimited++;
+            } else {
+              aiFailed++;
+            }
           }
 
           await itemRef.set({
@@ -285,6 +289,7 @@ export default async function handler(req, res) {
       aiSkipped,
       aiFailed,
       aiQuotaLimited,
+      aiCached,
       failedSources,
     });
   } catch (error) {

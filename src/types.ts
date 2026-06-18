@@ -38,6 +38,8 @@ export type SignalType =
 
 export type AiStatus = 'summarized' | 'failed' | 'skipped' | 'quota_limited';
 
+export type AiProvider = 'gemini' | 'groq' | 'cache' | 'none';
+
 export interface Source {
   id: string;
   name: string;
@@ -73,6 +75,7 @@ export interface ContentItem {
   actionProposal?: string;
   relevanceScore?: number | null;
   aiStatus?: AiStatus;
+  aiProvider?: AiProvider;
   aiModel?: string | null;
   aiUpdatedAt?: string;
   aiErrorName?: string | null;

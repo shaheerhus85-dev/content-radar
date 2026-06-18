@@ -564,6 +564,7 @@ export default function App() {
         message?: string;
         checked?: number;
         summarized?: number;
+        cached?: number;
         failed?: number;
         skipped?: number;
         quotaLimited?: number;
@@ -575,11 +576,11 @@ export default function App() {
 
       const summary = result.message
         ? `${result.message} ${result.skipped ?? 0} skipped.`
-        : `AI analysis completed. ${result.summarized ?? 0} summarized, ${result.failed ?? 0} failed, ${result.quotaLimited ?? 0} quota limited, ${result.skipped ?? 0} skipped.`;
+        : `AI analysis completed. ${result.summarized ?? 0} summarized, ${result.cached ?? 0} cached, ${result.failed ?? 0} failed, ${result.quotaLimited ?? 0} quota limited, ${result.skipped ?? 0} skipped.`;
 
       setAiAnalysisMessage(summary);
       setPrivateLogs((prev) => [
-        `Analyze existing complete. Checked ${result.checked ?? 0}; ${result.summarized ?? 0} summarized, ${result.failed ?? 0} failed, ${result.quotaLimited ?? 0} quota limited, ${result.skipped ?? 0} skipped.`,
+        `Analyze existing complete. Checked ${result.checked ?? 0}; ${result.summarized ?? 0} summarized, ${result.cached ?? 0} cached, ${result.failed ?? 0} failed, ${result.quotaLimited ?? 0} quota limited, ${result.skipped ?? 0} skipped.`,
         ...prev,
       ]);
     } catch (error) {

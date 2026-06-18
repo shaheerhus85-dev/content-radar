@@ -140,6 +140,12 @@ export default function InsightsTable({
     return 'AI analysis not generated yet.';
   };
 
+  const getAiProviderLabel = (item: ContentItem) => {
+    if (item.aiProvider === 'groq') return 'Groq';
+    if (item.aiProvider === 'cache') return 'Cached insight';
+    return '';
+  };
+
   return (
     <div id="insights-table-parent-wrapper" className="bg-theme-surface border border-theme-border p-5 rounded-xl shadow-sm text-left transition-colors">
       
@@ -453,6 +459,15 @@ export default function InsightsTable({
                           <span className="w-1.5 h-1.5 rounded-full bg-current" /> {getAiStatusLabel(activeArticle)}
                         </span>
                       </div>
+
+                      {getAiProviderLabel(activeArticle) && (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] uppercase font-bold text-theme-text-secondary/80">AI Provider</span>
+                          <span className="text-theme-text-secondary font-semibold text-xs">
+                            {getAiProviderLabel(activeArticle)}
+                          </span>
+                        </div>
+                      )}
 
                       {activeArticle.isSample && (
                         <div className="flex flex-col gap-0.5">

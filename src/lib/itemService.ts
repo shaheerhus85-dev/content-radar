@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import {
   ContentItem,
+  type AiProvider,
   type AiStatus,
   type InsightTopic,
   type SignalType,
@@ -31,6 +32,7 @@ interface ItemDocument {
   actionProposal?: string;
   relevanceScore?: number | null;
   aiStatus?: AiStatus;
+  aiProvider?: AiProvider;
   aiModel?: string | null;
   aiUpdatedAt?: Timestamp | null;
   aiErrorName?: string | null;
@@ -98,6 +100,7 @@ export const subscribeToUserItems = (
           actionProposal: data.actionProposal || data.actionNote || 'Review this update.',
           relevanceScore: typeof data.relevanceScore === 'number' ? data.relevanceScore : null,
           aiStatus: data.aiStatus || 'skipped',
+          aiProvider: data.aiProvider || 'none',
           aiModel: data.aiModel || null,
           aiUpdatedAt: formatTimestamp(data.aiUpdatedAt),
           aiErrorName: data.aiErrorName || null,
@@ -139,6 +142,7 @@ export const resetQuotaFailedItems = async (uid: string) => {
 
     batch.update(itemDoc.ref, {
       aiStatus: 'quota_limited',
+      aiProvider: 'none',
       aiErrorMessage: 'AI analysis is queued. Parsed content is saved and can be analyzed later.',
       aiUpdatedAt: serverTimestamp(),
       updatedAt: serverTimestamp(),

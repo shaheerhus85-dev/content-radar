@@ -2,9 +2,8 @@ import {
   buildFailedAiFields,
   buildSkippedAiFields,
   buildSummarizedAiFields,
-  generateGeminiInsight,
-  hasGeminiApiKey,
-} from './lib/geminiInsights.js';
+  generateInsightForItem,
+} from './lib/aiInsightService.js';
 
 const DEFAULT_LIMIT = 1;
 const MAX_LIMIT = 25;
@@ -141,24 +140,7 @@ export default async function handler(req, res) {
     let failed = 0;
     let skipped = 0;
     let quotaLimited = 0;
-
-    if (!hasGeminiApiKey()) {
-      await Promise.all(candidateDocs.map((itemDoc) => itemDoc.ref.update({
-        ...buildSkippedAiFields(),
-        aiUpdatedAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      })));
-
-      return res.status(200).json({
-        success: true,
-        checked: candidateDocs.length,
-        summarized,
-        failed,
-        skipped: candidateDocs.length,
-        quotaLimited,
-        message: 'GEMINI_API_KEY is not configured.',
-      });
-    }
+    let cached = 0;
 
     const sourceCache = new Map();
 
@@ -173,13 +155,40 @@ export default async function handler(req, res) {
           item,
           sourceCache,
         });
-        const aiInsight = await generateGeminiInsight({
+        const aiResult = await generateInsightForItem({
           item,
           source,
           sourceName,
           fallbackSummary,
+          adminDb,
+          FieldValue,
         });
-        const aiFields = buildSummarizedAiFields(FieldValue, aiInsight);
+
+        if (aiResult.status === 'skipped') {
+          await itemDoc.ref.update({
+            ...buildSkippedAiFields(),
+            aiUpdatedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+          skipped++;
+          continue;
+        }
+
+        if (aiResult.status !== 'summarized') {
+          const aiFields = buildFailedAiFields(FieldValue, aiResult);
+          await itemDoc.ref.update({
+            ...aiFields,
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+          if (aiFields.aiStatus === 'quota_limited') {
+            quotaLimited++;
+          } else {
+            failed++;
+          }
+          continue;
+        }
+
+        const aiFields = buildSummarizedAiFields(FieldValue, aiResult);
 
         await itemDoc.ref.update({
           summary: aiFields.aiSummary || fallbackSummary,
@@ -189,9 +198,18 @@ export default async function handler(req, res) {
           updatedAt: FieldValue.serverTimestamp(),
         });
 
-        summarized++;
+        if (aiResult.fromCache) {
+          cached++;
+        } else {
+          summarized++;
+        }
       } catch (error) {
-        const aiFields = buildFailedAiFields(FieldValue, error);
+        const aiFields = buildFailedAiFields(FieldValue, {
+          status: 'failed',
+          provider: 'none',
+          model: null,
+          error,
+        });
         await itemDoc.ref.update({
           ...aiFields,
           updatedAt: FieldValue.serverTimestamp(),
@@ -208,6 +226,7 @@ export default async function handler(req, res) {
       success: true,
       checked: candidateDocs.length,
       summarized,
+      cached,
       failed,
       skipped,
       quotaLimited,

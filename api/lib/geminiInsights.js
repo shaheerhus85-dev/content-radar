@@ -2,7 +2,7 @@ export const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash';
 
 const GEMINI_TIMEOUT_MS = 20_000;
 
-const TOPICS = new Set([
+export const TOPICS = new Set([
   'AI',
   'SEO',
   'Automation',
@@ -15,7 +15,7 @@ const TOPICS = new Set([
   'Uncategorized',
 ]);
 
-const SIGNAL_TYPES = new Set([
+export const SIGNAL_TYPES = new Set([
   'Competitor Update',
   'Product Update',
   'Research',
@@ -25,7 +25,7 @@ const SIGNAL_TYPES = new Set([
   'Other',
 ]);
 
-const PURPOSE_GUIDANCE = {
+export const PURPOSE_GUIDANCE = {
   competitor: 'Focus on positioning, product strategy, pricing or feature changes, launches, and messaging signals.',
   content: 'Focus on useful content themes, audience needs, recurring subjects, and editorial opportunities.',
   product: 'Focus on product changes, releases, roadmap direction, feature direction, and user impact.',
@@ -64,10 +64,13 @@ const clampScore = (score) => {
 };
 
 const safeString = (value, maxLength = 280) => {
-  const apiKey = process.env.GEMINI_API_KEY || '';
+  const apiKeys = [
+    process.env.GEMINI_API_KEY || '',
+    process.env.GROQ_API_KEY || '',
+  ].filter(Boolean);
   let text = clampText(value, maxLength);
 
-  if (apiKey) {
+  for (const apiKey of apiKeys) {
     text = text.split(apiKey).join('[redacted]');
   }
 
@@ -338,6 +341,7 @@ export const testGeminiGenerate = async () => {
 
 export const buildSkippedAiFields = () => ({
   aiStatus: 'skipped',
+  aiProvider: 'none',
   aiModel: null,
   aiUpdatedAt: null,
   aiErrorName: null,
@@ -349,6 +353,7 @@ export const buildSkippedAiFields = () => ({
 export const buildFailedAiFields = (FieldValue, error) => ({
   ...safeGeminiError(error),
   aiStatus: isGeminiQuotaError(error) ? 'quota_limited' : 'failed',
+  aiProvider: 'gemini',
   aiModel: getGeminiModel(),
   aiUpdatedAt: FieldValue.serverTimestamp(),
 });
@@ -361,6 +366,7 @@ export const buildSummarizedAiFields = (FieldValue, aiInsight) => ({
   actionProposal: aiInsight.actionProposal,
   relevanceScore: aiInsight.relevanceScore,
   aiStatus: 'summarized',
+  aiProvider: 'gemini',
   aiModel: getGeminiModel(),
   aiUpdatedAt: FieldValue.serverTimestamp(),
   aiErrorName: null,
