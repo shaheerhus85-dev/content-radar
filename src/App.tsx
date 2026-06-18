@@ -425,20 +425,28 @@ export default function App() {
         }
 
         setScanProgress(1);
-        const fallbackSources = result.sourceResults?.filter((source) => source.status === 'fallback') || [];
-        const failedSources = result.sourceResults?.filter((source) => source.status === 'failed') || result.failedSources || [];
+        const sourceResults = result.sourceResults || [];
+        const fallbackSources = sourceResults.filter((source) => source.status === 'fallback');
+        const pageWatchFallbackLogs = fallbackSources
+          .filter((source) => source.reason.toLowerCase().includes('page watch'))
+          .map((source) => `Page watch fallback saved for ${source.sourceName}.`);
+        const otherFallbackCount = fallbackSources.length - pageWatchFallbackLogs.length;
+        const failedSourceCount = sourceResults.length > 0
+          ? sourceResults.filter((source) => source.status === 'failed').length
+          : result.failedSources?.length ?? 0;
         const fallbackItemsSaved = result.fallbackItemsSaved ?? 0;
         setRefreshResultMessage(
-          `Refresh checked ${result.sourcesChecked ?? 0} sources, saved ${result.newItems ?? 0} items, saved ${fallbackItemsSaved} webpage fallback items, and found ${failedSources.length} sources needing attention.`,
+          `Refresh checked ${result.sourcesChecked ?? 0} sources, saved ${result.newItems ?? 0} items, saved ${fallbackItemsSaved} webpage fallback items, and found ${failedSourceCount} sources needing attention.`,
         );
         setPrivateLogs((prev) => [
           `Refresh complete. Checked ${result.sourcesChecked ?? 0} sources, added ${result.newItems ?? 0} new items, skipped ${result.skippedDuplicates ?? 0} duplicates.`,
           `AI insights: ${result.aiSummarized ?? 0} summarized, ${result.aiSkipped ?? 0} parsed only, ${result.aiFailed ?? 0} failed, ${result.aiQuotaLimited ?? 0} queued.`,
-          ...(fallbackSources.length
-            ? [`${fallbackSources.length} source${fallbackSources.length === 1 ? '' : 's'} could not provide feed items. A webpage fallback was saved.`]
+          ...pageWatchFallbackLogs,
+          ...(otherFallbackCount
+            ? [`${otherFallbackCount} source${otherFallbackCount === 1 ? '' : 's'} could not provide feed items. A webpage fallback was saved.`]
             : []),
-          ...(failedSources.length
-            ? [`${failedSources.length} source${failedSources.length === 1 ? '' : 's'} need attention. No accessible feed or page metadata found.`]
+          ...(failedSourceCount
+            ? ['Source needs attention. No accessible page metadata found.']
             : []),
           ...prev,
         ]);

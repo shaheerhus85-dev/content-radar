@@ -52,6 +52,15 @@ const getFallbackUrl = (source) => (
   source.discoveredFrom || source.originalUrl || source.homepageUrl || source.url
 );
 
+const getSourceType = (source) => String(source.type || 'rss').toLowerCase();
+
+const isPageWatchSource = (source) => {
+  const sourceType = getSourceType(source);
+  return sourceType === 'webpage'
+    || sourceType === 'page-watch'
+    || (source.discoveryMethod === 'fallback' && sourceType === 'webpage');
+};
+
 const decodeHtmlEntities = (value) => (
   value
     .replace(/&amp;/g, '&')
@@ -94,6 +103,7 @@ const parseWebpageItem = (html, url) => {
 
 const getSafeSourceMessage = (status, reason) => {
   if (status === 'success') return 'Source refreshed successfully.';
+  if (status === 'page-watch') return 'Page watch fallback saved.';
   if (status === 'fallback') return 'Feed items were unavailable, so a webpage fallback was saved.';
   if (/filter/i.test(reason || '')) return 'No usable items matched the current source filters.';
   return 'No accessible feed or page metadata found. Try another URL or source.';
@@ -335,6 +345,56 @@ export default async function handler(req, res) {
       let sourceItemsSaved = 0;
 
       try {
+        if (isPageWatchSource(source)) {
+          const pageUrl = getFallbackUrl(source);
+          const pageText = await fetchSourceText(pageUrl, 'webpage');
+          const pageItems = parseWebpageItem(pageText, pageUrl).slice(0, 1);
+
+          if (pageItems.length === 0) {
+            throw new Error('No page metadata found.');
+          }
+
+          const pageSaveResult = await saveParsedItem({
+            adminDb,
+            FieldValue,
+            uid,
+            sourceDoc,
+            item: pageItems[0],
+            source,
+            sourceName,
+            sourceType: 'webpage',
+          });
+
+          tallySaveResult(pageSaveResult);
+          if (pageSaveResult.saved) {
+            fallbackItemsSaved++;
+            sourceItemsSaved++;
+          }
+
+          sourceStatus = 'fallback';
+          sourceMessage = pageSaveResult.duplicate
+            ? 'Page watch fallback already saved.'
+            : getSafeSourceMessage('page-watch');
+          sourceResults.push({
+            sourceId: sourceDoc.id,
+            sourceName,
+            status: sourceStatus,
+            itemsSaved: sourceItemsSaved,
+            reason: sourceMessage,
+          });
+
+          await sourceDoc.ref.update({
+            lastFetchedAt: FieldValue.serverTimestamp(),
+            lastRefreshStatus: sourceStatus,
+            lastRefreshMessage: sourceMessage,
+            lastCheckedAt: FieldValue.serverTimestamp(),
+            lastSuccessAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+
+          continue;
+        }
+
         const sourceType = source.type || 'rss';
         const sourceText = await fetchSourceText(source.url, sourceType);
         const maxItemsPerRefresh = getMaxItemsPerRefresh(source);
@@ -386,6 +446,33 @@ export default async function handler(req, res) {
           updatedAt: FieldValue.serverTimestamp(),
         });
       } catch (error) {
+        if (isPageWatchSource(source)) {
+          sourceStatus = 'failed';
+          sourceMessage = 'No accessible page metadata found. Try another URL or source.';
+          failedSources.push({
+            sourceId: sourceDoc.id,
+            sourceName,
+            error: sourceMessage,
+          });
+          sourceResults.push({
+            sourceId: sourceDoc.id,
+            sourceName,
+            status: sourceStatus,
+            itemsSaved: 0,
+            reason: sourceMessage,
+          });
+
+          await sourceDoc.ref.update({
+            lastRefreshStatus: sourceStatus,
+            lastRefreshMessage: sourceMessage,
+            lastCheckedAt: FieldValue.serverTimestamp(),
+            lastFailureAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+
+          continue;
+        }
+
         try {
           const fallbackUrl = getFallbackUrl(source);
           const fallbackText = await fetchSourceText(fallbackUrl, 'webpage');

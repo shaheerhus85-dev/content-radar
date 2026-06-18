@@ -1,4 +1,4 @@
-export type SourceType = 'rss' | 'atom' | 'sitemap' | 'webpage';
+export type SourceType = 'rss' | 'atom' | 'sitemap' | 'webpage' | 'page-watch';
 
 export type SourcePurpose =
   | 'competitor'

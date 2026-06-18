@@ -51,13 +51,13 @@ const purposeLabels = Object.fromEntries(
 
 const getCandidateTypeLabel = (type: SourceType) => {
   if (type === 'sitemap') return 'Website sitemap fallback';
-  if (type === 'webpage') return 'Basic page watch';
+  if (type === 'webpage' || type === 'page-watch') return 'Basic page watch';
   return 'Best feed found';
 };
 
 const getSourceTypeLabel = (type: SourceType) => {
   if (type === 'sitemap') return 'Sitemap fallback';
-  if (type === 'webpage') return 'Page watch';
+  if (type === 'webpage' || type === 'page-watch') return 'Page watch';
   return 'Feed stream';
 };
 
