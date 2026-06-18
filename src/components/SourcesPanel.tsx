@@ -62,6 +62,24 @@ const getSourceTypeLabel = (type: SourceType) => {
 };
 
 const getRefreshStatusMeta = (source: Source) => {
+  if (!source.lastRefreshStatus) {
+    return {
+      label: 'Not checked yet',
+      message: source.lastRefreshMessage || '',
+      className: 'text-theme-text-secondary',
+      dotClassName: 'bg-theme-text-secondary',
+    };
+  }
+
+  if (source.lastRefreshStatus === 'success') {
+    return {
+      label: 'Active',
+      message: source.lastRefreshMessage || '',
+      className: 'text-[#12B76A]',
+      dotClassName: 'bg-[#12B76A]',
+    };
+  }
+
   if (source.lastRefreshStatus === 'fallback') {
     return {
       label: 'Fallback',
@@ -71,20 +89,11 @@ const getRefreshStatusMeta = (source: Source) => {
     };
   }
 
-  if (source.lastRefreshStatus === 'failed' || source.status === 'failed') {
-    return {
-      label: 'Needs attention',
-      message: source.lastRefreshMessage || 'No accessible feed or page metadata found. Try another URL or source.',
-      className: 'text-rose-500',
-      dotClassName: 'bg-rose-500',
-    };
-  }
-
   return {
-    label: 'Active',
-    message: source.lastRefreshMessage || '',
-    className: 'text-[#12B76A]',
-    dotClassName: 'bg-[#12B76A]',
+    label: 'Needs attention',
+    message: source.lastRefreshMessage || 'No accessible feed or page metadata found. Try another URL or source.',
+    className: 'text-rose-500',
+    dotClassName: 'bg-rose-500',
   };
 };
 

@@ -12,8 +12,40 @@ export default function MonitoredSourcesSummary({
 }: MonitoredSourcesSummaryProps) {
   const getSourceTypeLabel = (source: Source) => {
     if (source.type === 'sitemap') return 'Sitemap fallback';
-    if (source.type === 'webpage') return 'Page watch';
+    if (source.type === 'webpage' || source.type === 'page-watch') return 'Page watch';
     return 'Feed stream';
+  };
+
+  const getSourceStatusMeta = (source: Source) => {
+    if (!source.lastRefreshStatus) {
+      return {
+        label: 'Not checked yet',
+        className: 'bg-theme-surface-soft text-theme-text-secondary border-theme-border',
+        dotClassName: 'bg-theme-text-secondary',
+      };
+    }
+
+    if (source.lastRefreshStatus === 'success') {
+      return {
+        label: 'Active',
+        className: 'bg-[#12B76A]/10 text-[#12B76A] border-[#12B76A]/15',
+        dotClassName: 'bg-[#12B76A]',
+      };
+    }
+
+    if (source.lastRefreshStatus === 'fallback') {
+      return {
+        label: 'Fallback',
+        className: 'bg-[#F59E0B]/10 text-[#F59E0B] border-[#F59E0B]/20',
+        dotClassName: 'bg-[#F59E0B]',
+      };
+    }
+
+    return {
+      label: 'Needs attention',
+      className: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
+      dotClassName: 'bg-rose-500',
+    };
   };
 
   const getSavedItemCount = (source: Source) => (
@@ -33,7 +65,7 @@ export default function MonitoredSourcesSummary({
             <span>Monitored Sources</span>
           </h3>
           <p className="text-[12px] text-theme-text-secondary mt-1">
-            Active content feeds synced with our indexing engine.
+            Source health based on the latest refresh result.
           </p>
         </div>
       </div>
@@ -56,47 +88,46 @@ export default function MonitoredSourcesSummary({
                   No monitored sources configured.
                 </td>
               </tr>
-            ) : sources.map((src) => (
-              <tr
-                key={src.id}
-                className="hover:bg-theme-surface-soft/40 transition-colors duration-150"
-              >
-                {/* Source column */}
-                <td className="px-4 py-3 font-semibold text-theme-text-primary">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span>{src.name}</span>
-                    {src.isSample && (
-                      <span className="rounded-md border border-theme-border bg-theme-surface-soft px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-theme-text-secondary">
-                        Sample
-                      </span>
-                    )}
-                  </div>
-                </td>
-                
-                {/* Type column */}
-                <td className="px-4 py-3 text-theme-text-secondary">
-                  {getSourceTypeLabel(src)}
-                </td>
-                
-                {/* Status column with nice custom badge */}
-                <td className="px-4 py-3">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#12B76A]/10 text-[#12B76A] border border-[#12B76A]/15">
-                    <span className="w-1 h-1 bg-[#12B76A] rounded-full animate-pulse" />
-                    {src.status === 'active' ? 'Active' : 'Failed'}
-                  </span>
-                </td>
-                
-                {/* Items column */}
-                <td className="px-4 py-3 text-center font-mono font-semibold text-theme-text-secondary">
-                  {getSavedItemCount(src)}
-                </td>
-                
-                {/* Last Checked relative label */}
-                <td className="px-4 py-3 text-theme-text-secondary font-medium">
-                  {src.lastFetchedAt || 'Not checked yet'}
-                </td>
-              </tr>
-            ))}
+            ) : sources.map((src) => {
+              const statusMeta = getSourceStatusMeta(src);
+
+              return (
+                <tr
+                  key={src.id}
+                  className="hover:bg-theme-surface-soft/40 transition-colors duration-150"
+                >
+                  <td className="px-4 py-3 font-semibold text-theme-text-primary">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span>{src.name}</span>
+                      {src.isSample && (
+                        <span className="rounded-md border border-theme-border bg-theme-surface-soft px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wider text-theme-text-secondary">
+                          Sample
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  
+                  <td className="px-4 py-3 text-theme-text-secondary">
+                    {getSourceTypeLabel(src)}
+                  </td>
+                  
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusMeta.className}`}>
+                      <span className={`w-1 h-1 rounded-full ${statusMeta.dotClassName}`} />
+                      {statusMeta.label}
+                    </span>
+                  </td>
+                  
+                  <td className="px-4 py-3 text-center font-mono font-semibold text-theme-text-secondary">
+                    {getSavedItemCount(src)}
+                  </td>
+                  
+                  <td className="px-4 py-3 text-theme-text-secondary font-medium">
+                    {src.lastCheckedAt || src.lastFetchedAt || 'Not checked yet'}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

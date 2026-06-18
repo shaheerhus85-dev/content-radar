@@ -142,6 +142,19 @@ export default async function handler(req, res) {
     let quotaLimited = 0;
     let cached = 0;
 
+    if (candidateDocs.length === 0) {
+      return res.status(200).json({
+        success: true,
+        checked: 0,
+        summarized,
+        cached,
+        failed,
+        skipped,
+        quotaLimited,
+        message: 'No parsed items need analysis right now.',
+      });
+    }
+
     const sourceCache = new Map();
 
     for (const itemDoc of candidateDocs) {

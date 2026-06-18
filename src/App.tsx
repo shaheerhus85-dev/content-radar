@@ -426,6 +426,26 @@ export default function App() {
 
         setScanProgress(1);
         const sourceResults = result.sourceResults || [];
+        if (sourceResults.length > 0) {
+          const checkedAtLabel = new Date().toLocaleDateString();
+          setPrivateSources((prev) => prev.map((source) => {
+            const sourceResult = sourceResults.find((candidate) => candidate.sourceId === source.id);
+            if (!sourceResult) return source;
+
+            return {
+              ...source,
+              lastRefreshStatus: sourceResult.status,
+              lastRefreshMessage: sourceResult.reason,
+              lastCheckedAt: checkedAtLabel,
+              lastSuccessAt: sourceResult.status === 'success' || sourceResult.status === 'fallback'
+                ? checkedAtLabel
+                : source.lastSuccessAt,
+              lastFailureAt: sourceResult.status === 'failed'
+                ? checkedAtLabel
+                : source.lastFailureAt,
+            };
+          }));
+        }
         const fallbackSources = sourceResults.filter((source) => source.status === 'fallback');
         const pageWatchFallbackLogs = fallbackSources
           .filter((source) => source.reason.toLowerCase().includes('page watch'))
@@ -623,13 +643,17 @@ export default function App() {
         throw new Error(result.error || 'Unable to analyze existing items.');
       }
 
-      const summary = result.message
+      const summary = result.checked === 0
+        ? 'No parsed items need analysis right now.'
+        : result.message
         ? `${result.message} ${result.skipped ?? 0} skipped.`
         : `AI analysis completed. ${result.summarized ?? 0} summarized, ${result.cached ?? 0} cached, ${result.failed ?? 0} failed, ${result.quotaLimited ?? 0} quota limited, ${result.skipped ?? 0} skipped.`;
 
       setAiAnalysisMessage(summary);
       setPrivateLogs((prev) => [
-        `Analyze existing complete. Checked ${result.checked ?? 0}; ${result.summarized ?? 0} summarized, ${result.cached ?? 0} cached, ${result.failed ?? 0} failed, ${result.quotaLimited ?? 0} quota limited, ${result.skipped ?? 0} skipped.`,
+        result.checked === 0
+          ? 'Analyze existing complete. No parsed items need analysis right now.'
+          : `Analyze existing complete. Checked ${result.checked ?? 0}; ${result.summarized ?? 0} summarized, ${result.cached ?? 0} cached, ${result.failed ?? 0} failed, ${result.quotaLimited ?? 0} quota limited, ${result.skipped ?? 0} skipped.`,
         ...prev,
       ]);
     } catch (error) {
