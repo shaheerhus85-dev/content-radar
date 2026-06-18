@@ -32,6 +32,17 @@ type ViewMode = 'landing' | 'dashboard';
 type WorkspaceMode = 'demo' | 'private';
 type AuthMode = 'signin' | 'signup';
 
+const getArticleSortTime = (article: ContentItem) => {
+  const candidates = [article.createdAt, article.updatedAt, article.publishedAt];
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const parsed = Date.parse(candidate);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+
+  return 0;
+};
+
 const demoUser = {
   name: 'Demo Visitor',
   email: 'preview@content-radar.local',
@@ -97,6 +108,17 @@ export default function App() {
   const sources = isPrivateWorkspace ? privateSources : demoSources;
   const articles = isPrivateWorkspace ? privateArticles : demoArticles;
   const executionLogs = isPrivateWorkspace ? privateLogs : demoLogs;
+  const displayArticles = useMemo(() => {
+    const hasRealItems = articles.some((article) => !article.isSample);
+
+    return [...articles].sort((a, b) => {
+      if (hasRealItems && a.isSample !== b.isSample) {
+        return a.isSample ? 1 : -1;
+      }
+
+      return getArticleSortTime(b) - getArticleSortTime(a);
+    });
+  }, [articles]);
 
   const user = useMemo(() => {
     if (isPrivateWorkspace && authUser) {
@@ -655,7 +677,7 @@ export default function App() {
     ]);
   };
 
-  const searchedArticles = articles.filter((article) => {
+  const searchedArticles = displayArticles.filter((article) => {
     if (!globalSearch.trim()) return true;
     return (
       article.title.toLowerCase().includes(globalSearch.toLowerCase()) ||
@@ -665,7 +687,7 @@ export default function App() {
   });
 
   const sourceItemCounts = useMemo(() => {
-    return articles.reduce((counts, article) => {
+    return displayArticles.reduce((counts, article) => {
       if (article.sourceId) {
         counts[article.sourceId] = (counts[article.sourceId] || 0) + 1;
       }
@@ -676,7 +698,7 @@ export default function App() {
 
       return counts;
     }, {} as Record<string, number>);
-  }, [articles]);
+  }, [displayArticles]);
 
   const dashboardCounts = {
     articles: articles.length,

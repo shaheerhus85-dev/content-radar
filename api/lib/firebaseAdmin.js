@@ -56,12 +56,7 @@ const getServiceAccountFallback = () => {
   if (!clientEmail) missing.push('FIREBASE_CLIENT_EMAIL');
   if (!privateKey) missing.push('FIREBASE_PRIVATE_KEY');
 
-  const diag = { hasBase64: false, privateKeyLooksOkay: false };
-  if (privateKey) {
-    diag.privateKeyStartsWith = privateKey.startsWith('-----BEGIN');
-    diag.privateKeyEndsWith = privateKey.endsWith('-----END PRIVATE KEY-----');
-    diag.privateKeyLooksOkay = diag.privateKeyStartsWith && diag.privateKeyEndsWith;
-  }
+  const diag = { hasBase64: false, hasPrivateKey: !!privateKey };
 
   if (missing.length) {
     throw new MissingFirebaseAdminEnvError(missing, diag);

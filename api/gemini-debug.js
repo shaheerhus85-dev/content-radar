@@ -4,6 +4,7 @@ import {
   safeGeminiError,
   testGeminiGenerate,
 } from './lib/geminiInsights.js';
+import { requireDebugSecret } from './lib/debugAuth.js';
 
 export default async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
@@ -12,6 +13,8 @@ export default async function handler(req, res) {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ success: false, error: 'Method not allowed.' });
   }
+
+  if (!requireDebugSecret(req, res)) return;
 
   const basePayload = {
     hasGeminiApiKey: hasGeminiApiKey(),

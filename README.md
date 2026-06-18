@@ -1,39 +1,41 @@
 # Content Radar
 
-Content Radar is a Firebase-backed content monitoring prototype for saving RSS/sitemap sources, refreshing them through a Vercel serverless API, and presenting parsed updates in a focused dashboard.
+Content Radar is an AI automation proof-of-work project by Shaheer Hussain Jafri. It monitors public websites, discovers usable feeds or sitemaps, saves parsed updates into private workspaces, and turns those updates into recruiter-friendly AI insights.
 
-## Overview
+Live demo: `https://your-content-radar-demo-url.example`
 
-The project demonstrates the public landing page, demo dashboard, authenticated private workspace, and first backend ingestion path for a content monitoring product. It is designed as a recruiter-friendly showcase of product thinking, frontend execution, dashboard UX, and clean full-stack boundaries.
+## Why This Exists
 
-## Problem
+This repository is built as GitHub proof-of-work for AI automation, full-stack product execution, and practical recruiter demo readiness. It shows how a normal website URL can become a monitored source, how parsed content is persisted safely, and how multi-provider AI analysis can produce summaries, topics, business signals, and suggested next actions.
 
-Teams that follow many blogs, release feeds, and public content sources often review the same update multiple times across different channels. Content Radar is intended to reduce that noise by collecting source updates, surfacing new items, and organizing them into summaries, topics, and action notes.
+## What It Does
+
+- Lets visitors view a public dashboard preview without signing in.
+- Lets authenticated users create a private Firebase-backed workspace.
+- Lets users paste normal website URLs instead of needing to know RSS or sitemap links.
+- Discovers RSS, Atom, sitemap, or webpage monitoring fallbacks.
+- Refreshes saved sources through Vercel serverless APIs.
+- Saves parsed items to Firestore with URL-based deduplication.
+- Generates AI insight fields with Gemini first and Groq fallback.
+- Uses a URL-based AI insight cache to avoid repeated provider calls for the same public article URL.
+- Keeps parsed items visible when AI quota is unavailable.
+- Provides a clearly labeled sample workspace for recruiter-safe demos.
 
 ## Features
 
-- Public landing page for product positioning
-- Dashboard preview with source, article, duplicate, and insight metrics
-- Firebase email/password authentication
-- Private workspace with Firestore-backed source persistence
-- Authenticated RSS/Atom/sitemap refresh API through Vercel serverless functions
-- Parsed item persistence with URL-based deduplication
-- Topic and keyword filtering for insights
-- Insight detail modal with source link and action note
-- Simulated source refresh flow for the public demo dashboard
-- Reports and settings screens
-- Light and dark theme support
-
-## Product Flow
-
-1. A visitor lands on the product showcase page.
-2. The visitor opens the dashboard preview.
-3. The dashboard displays monitored content sources and recent insights.
-4. The visitor can sign up or sign in to open a private workspace.
-5. Authenticated users can add RSS or sitemap sources.
-6. Authenticated users can refresh saved sources through the backend API.
-7. Parsed items appear in the private dashboard and persist in Firestore.
-8. The visitor can filter insights and open the insight review modal.
+- Firebase Auth with private user workspaces
+- Firestore source and item persistence
+- Smart source discovery from normal website URLs
+- RSS, Atom, sitemap, and webpage parsing
+- Authenticated source refresh endpoint
+- Gemini AI summaries, topics, signal types, relevance scores, and action proposals
+- Groq fallback provider for more reliable demo analysis
+- Global public URL insight cache at `aiInsightCache/{urlHash}`
+- Quota-safe UI states such as `AI queued` and `Parsed content saved`
+- Recruiter-safe sample workspace with visible `Sample workspace data` badges
+- Insight filters for All, Real, Sample, Summarized, AI Queued, and Failed
+- Public demo mode that remains separate from authenticated user data
+- Locked debug diagnostics with `DEBUG_SECRET`
 
 ## Tech Stack
 
@@ -42,37 +44,89 @@ Teams that follow many blogs, release feeds, and public content sources often re
 - Vite
 - Tailwind CSS v4
 - Lucide React icons
-- Motion
 - Firebase client SDK
+- Firebase Auth
+- Firestore
 - Firebase Admin SDK
 - Vercel serverless functions
+- Gemini REST API
+- Groq OpenAI-compatible chat completions API
 - fast-xml-parser
 
-## Current Status
+## Architecture Overview
 
-This repository currently contains a Vite React frontend with Firebase authentication, Firestore source/item persistence, and a Vercel serverless refresh endpoint.
+Frontend:
 
-Implemented foundation:
+- Vite React app renders the public demo, private dashboard, source setup, insights table, and settings/report screens.
+- Firebase client SDK handles authentication and user-scoped Firestore reads.
+- Sample workspace data is created only when the signed-in user clicks `Load Sample Workspace`.
 
-- Public landing page and public demo dashboard
-- Firebase client SDK setup
-- Email/password auth UI foundation
-- Authenticated private workspace shell
-- Firestore user profile document creation at `users/{uid}`
-- Firestore source persistence at `users/{uid}/sources/{sourceId}`
-- Authenticated refresh endpoint at `POST /api/refresh`
-- RSS 2.0, Atom, and sitemap XML parsing
-- Parsed item persistence at `users/{uid}/items/{itemId}`
+Backend:
 
-The following are intentionally not implemented yet:
+- `/api/health` is public and reports basic API availability.
+- `/api/discover-source` accepts a normal website URL and returns recommended monitoring candidates.
+- `/api/refresh` verifies a Firebase ID token, fetches active user sources, parses items, checks the AI cache, and analyzes new items.
+- `/api/analyze-existing` verifies a Firebase ID token and reprocesses one queued, skipped, or failed item by default.
+- `/api/ai-debug`, `/api/gemini-debug`, and `/api/admin-debug` require `DEBUG_SECRET`.
 
-- AI-generated summaries
-- Gemini or other model API integration
-- Scheduled refresh or cron
-- Firebase Cloud Functions
-- Firebase Hosting
+Data:
 
-Those capabilities are planned for the next implementation phase.
+- Private user data lives under `users/{uid}`.
+- Sources live under `users/{uid}/sources/{sourceId}`.
+- Items live under `users/{uid}/items/{itemId}`.
+- Public URL AI insight cache entries live under `aiInsightCache/{urlHash}` and do not store user IDs or private workspace context.
+
+## Environment Variables
+
+Only `VITE_*` variables are exposed to the browser. All provider keys and Firebase Admin credentials are server-only.
+
+Firebase client:
+
+- `VITE_FIREBASE_API_KEY`
+- `VITE_FIREBASE_AUTH_DOMAIN`
+- `VITE_FIREBASE_PROJECT_ID`
+- `VITE_FIREBASE_STORAGE_BUCKET`
+- `VITE_FIREBASE_MESSAGING_SENDER_ID`
+- `VITE_FIREBASE_APP_ID`
+- `VITE_FIREBASE_MEASUREMENT_ID`
+
+Firebase Admin:
+
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_CLIENT_EMAIL`
+- `FIREBASE_PRIVATE_KEY`
+- `FIREBASE_SERVICE_ACCOUNT_BASE64`
+
+AI providers:
+
+- `GEMINI_API_KEY`
+- `GEMINI_MODEL`
+- `GROQ_API_KEY`
+- `GROQ_MODEL`
+- `AI_PROVIDER_ORDER`
+
+Diagnostics:
+
+- `DEBUG_SECRET`
+
+Application:
+
+- `APP_URL`
+
+Do not commit `.env.local`, service account JSON files, Firebase private keys, Gemini keys, Groq keys, or debug secrets.
+
+## Recruiter Demo Flow
+
+1. Open the live demo link.
+2. Use `View Dashboard Preview` to see the public sample dashboard without logging in.
+3. Sign up for a private workspace.
+4. Choose `Load Sample Workspace` to view clearly labeled sample insights, or choose `Add My Own Source`.
+5. Paste a normal website URL such as `https://openai.com`, `https://vercel.com`, or a company blog.
+6. Pick a monitoring purpose such as competitor monitoring, product updates, SEO ideas, or industry research.
+7. Let Content Radar discover the best source.
+8. Refresh sources.
+9. Review parsed articles and AI insights.
+10. Use the insight filters to compare Real, Sample, Summarized, AI Queued, and Failed items.
 
 ## Local Development
 
@@ -82,7 +136,7 @@ Install dependencies:
 npm ci
 ```
 
-Start the development server:
+Start the Vite app:
 
 ```bash
 npm run dev
@@ -94,82 +148,52 @@ Build for production:
 npm run build
 ```
 
-Preview the production build:
+Run type checking:
 
 ```bash
-npm run preview
+npm run lint
 ```
 
-## Scripts
+Run Vercel serverless routes locally:
 
-- `npm run dev` - start the Vite dev server on port 3000
-- `npm run lint` - run TypeScript type checking
-- `npm run build` - create a production build
-- `npm run preview` - preview the production build
+```bash
+npx vercel dev
+```
 
-## Environment Variables
+## API Notes
 
-`.env.example` documents Firebase client variables, server-side Firebase Admin variables, and planned later-phase variables.
-
-The public landing page and demo dashboard can run without Firebase variables. Sign-in, sign-up, private sources, and private items require Firebase client configuration.
-
-Firebase client variables:
-
-- `VITE_FIREBASE_API_KEY`
-- `VITE_FIREBASE_AUTH_DOMAIN`
-- `VITE_FIREBASE_PROJECT_ID`
-- `VITE_FIREBASE_STORAGE_BUCKET`
-- `VITE_FIREBASE_MESSAGING_SENDER_ID`
-- `VITE_FIREBASE_APP_ID`
-- `VITE_FIREBASE_MEASUREMENT_ID`
-
-Server-only Firebase Admin variables for `/api/refresh`:
-
-- `FIREBASE_PROJECT_ID`
-- `FIREBASE_CLIENT_EMAIL`
-- `FIREBASE_PRIVATE_KEY`
-
-`FIREBASE_PRIVATE_KEY` may be stored with escaped newlines. The serverless function converts `\n` sequences into real newlines before initializing the Admin SDK.
-
-Planned later-phase variables:
-
-- `GEMINI_API_KEY` - future server-side summarization key
-- `APP_URL` - future deployment URL for callbacks, links, and API configuration
-
-Only `VITE_*` variables are safe for frontend exposure. Do not commit `.env.local`, service account JSON files, or real server credentials.
-
-## Refresh API
-
-`POST /api/refresh` is a Vercel serverless function for authenticated source refreshes.
-
-The frontend sends a Firebase ID token in the request header:
+Authenticated routes expect a Firebase ID token:
 
 ```text
 Authorization: Bearer <firebase-id-token>
 ```
 
-The API verifies the token with Firebase Admin, loads active sources from `users/{uid}/sources`, fetches each RSS/Atom/sitemap URL, parses up to 10 items per source, deduplicates by SHA-256 URL hash, and saves parsed items to `users/{uid}/items/{urlHash}`.
+Debug routes expect a debug token when `DEBUG_SECRET` is configured:
 
-This phase does not use Gemini or generate AI summaries. Parsed items use feed snippets and fallback review copy until the summarization phase is added.
+```text
+x-debug-token: <debug-secret>
+```
 
-## Firebase Security Rules
+or:
 
-`firestore.rules` is included as a reference for the private workspace data model:
+```text
+Authorization: Bearer <debug-secret>
+```
 
-- `users/{uid}`
-- `users/{uid}/sources/{sourceId}`
-- `users/{uid}/items/{itemId}`
+## Limitations
 
-Apply these rules manually in the Firebase Console before using Firestore with real users. The rules allow each signed-in user to read and write only their own profile, sources, and items. User profile deletion is disabled.
+- AI providers have free-tier and quota limits.
+- If AI quota is unavailable, Content Radar keeps parsed items visible and marks them as queued for later analysis.
+- Scheduled refresh and billing are intentionally not included.
+- The live demo URL must be set after deployment.
 
-## Future Improvements
+## Security Notes
 
-- Add a backend ingestion service
-- Generate summaries, topics, and action notes through a server-side AI workflow
-- Add scheduled refresh or cron support
-- Add item deletion and source health status management
-- Add exportable reports
-- Add tests for core UI flows
+- No secrets are committed.
+- Debug endpoints are disabled unless `DEBUG_SECRET` is configured.
+- Debug endpoints never return raw API keys.
+- Public demo data is separate from authenticated private workspaces.
+- Sample workspace records are labeled as `Sample workspace data`.
 
 ## Author
 

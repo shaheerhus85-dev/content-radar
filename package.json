@@ -2,7 +2,7 @@
   "name": "content-radar",
   "private": true,
   "version": "0.0.0",
-  "description": "Frontend UI prototype for an RSS and sitemap content monitoring dashboard.",
+  "description": "AI-powered content monitoring dashboard with source discovery, private workspaces, and multi-provider insight generation.",
   "type": "module",
   "engines": {
     "node": "20.x"

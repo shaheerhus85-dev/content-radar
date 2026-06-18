@@ -16,6 +16,20 @@ interface InsightsTableProps {
   emptyDescription?: string;
 }
 
+const getEffectiveAiStatus = (item: ContentItem) => {
+  if (
+    item.aiStatus === 'failed'
+    && (
+      item.aiErrorStatus === 429
+      || String(item.aiErrorCode || '').toUpperCase() === 'RESOURCE_EXHAUSTED'
+    )
+  ) {
+    return 'quota_limited';
+  }
+
+  return item.aiStatus || 'skipped';
+};
+
 export default function InsightsTable({
   insights,
   onRefreshDemo,
@@ -30,6 +44,7 @@ export default function InsightsTable({
 }: InsightsTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTopic, setSelectedTopic] = useState<string>('All');
+  const [selectedDataFilter, setSelectedDataFilter] = useState<string>('All');
   const [activeArticle, setActiveArticle] = useState<ContentItem | null>(null);
 
   // Lock body scroll and set up Escape key dismiss
@@ -67,9 +82,19 @@ export default function InsightsTable({
     'Uncategorized',
   ];
 
+  const dataFilters = [
+    'All',
+    'Real',
+    'Sample',
+    'Summarized',
+    'AI Queued',
+    'Failed',
+  ];
+
   // Real-time local search and filtering
   const filteredInsights = useMemo(() => {
     return insights.filter((item) => {
+      const effectiveStatus = getEffectiveAiStatus(item);
       const matchSearch =
         item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.sourceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -78,28 +103,21 @@ export default function InsightsTable({
         (item.aiSummary || item.summary).toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchTopic = selectedTopic === 'All' || item.topic === selectedTopic;
+      const matchDataFilter =
+        selectedDataFilter === 'All'
+        || (selectedDataFilter === 'Real' && !item.isSample)
+        || (selectedDataFilter === 'Sample' && item.isSample)
+        || (selectedDataFilter === 'Summarized' && effectiveStatus === 'summarized')
+        || (selectedDataFilter === 'AI Queued' && effectiveStatus === 'quota_limited')
+        || (selectedDataFilter === 'Failed' && effectiveStatus === 'failed');
 
-      return matchSearch && matchTopic;
+      return matchSearch && matchTopic && matchDataFilter;
     });
-  }, [insights, searchTerm, selectedTopic]);
+  }, [insights, searchTerm, selectedTopic, selectedDataFilter]);
 
   // Topic badge color mapper
   const getTopicColor = (topic: string) => {
     return 'bg-theme-surface-soft text-theme-text-secondary border-theme-border/40';
-  };
-
-  const getEffectiveAiStatus = (item: ContentItem) => {
-    if (
-      item.aiStatus === 'failed'
-      && (
-        item.aiErrorStatus === 429
-        || String(item.aiErrorCode || '').toUpperCase() === 'RESOURCE_EXHAUSTED'
-      )
-    ) {
-      return 'quota_limited';
-    }
-
-    return item.aiStatus || 'skipped';
   };
 
   const getAiStatusLabel = (item: ContentItem) => {
@@ -209,6 +227,27 @@ export default function InsightsTable({
       )}
 
       {/* 2. Horizontal Topic filter pills */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-3 overflow-x-auto pb-1 select-none">
+        <span className="text-[11px] font-bold text-theme-text-secondary mr-2 flex items-center gap-1 uppercase tracking-tight">
+          <Filter className="w-3.5 h-3.5" /> View:
+        </span>
+        {dataFilters.map((filter) => (
+          <button
+            key={filter}
+            id={`filter-data-${filter.replace(/\s+/g, '-').toLowerCase()}`}
+            onClick={() => setSelectedDataFilter(filter)}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-150 cursor-pointer border
+              ${selectedDataFilter === filter
+                ? 'bg-theme-accent text-theme-accent-fg border-theme-accent shadow-sm'
+                : 'bg-theme-surface-soft border-theme-border text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-border/20'
+              }
+            `}
+          >
+            {filter}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-wrap items-center gap-1.5 mb-5 overflow-x-auto pb-1 select-none">
         <span className="text-[11px] font-bold text-theme-text-secondary mr-2 flex items-center gap-1 uppercase tracking-tight">
           <Filter className="w-3.5 h-3.5" /> Topic Filter:

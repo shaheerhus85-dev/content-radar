@@ -1,11 +1,19 @@
 import { Buffer } from 'node:buffer';
+import { requireDebugSecret } from './lib/debugAuth.js';
 
 function bool(v) {
   return !!v;
 }
 
-export default async function handler(_req, res) {
+export default async function handler(req, res) {
   res.setHeader('Content-Type', 'application/json');
+
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    return res.status(405).json({ success: false, error: 'Method not allowed.' });
+  }
+
+  if (!requireDebugSecret(req, res)) return;
 
   const env = {
     hasBase64: bool(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64),
@@ -20,8 +28,6 @@ export default async function handler(_req, res) {
     hasProjectIdField: false,
     hasClientEmailField: false,
     hasPrivateKeyField: false,
-    privateKeyStartsCorrectly: false,
-    privateKeyEndsCorrectly: false,
   };
 
   if (env.hasBase64) {
@@ -34,11 +40,6 @@ export default async function handler(_req, res) {
         base64Diag.hasProjectIdField = !!(parsed.project_id || parsed.projectId);
         base64Diag.hasClientEmailField = !!parsed.client_email;
         base64Diag.hasPrivateKeyField = !!parsed.private_key;
-
-        if (parsed.private_key && typeof parsed.private_key === 'string') {
-          base64Diag.privateKeyStartsCorrectly = parsed.private_key.startsWith('-----BEGIN');
-          base64Diag.privateKeyEndsCorrectly = parsed.private_key.endsWith('-----END PRIVATE KEY-----');
-        }
       } catch (err) {
         base64Diag.jsonParseOk = false;
       }

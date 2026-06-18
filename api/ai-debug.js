@@ -3,6 +3,7 @@ import {
   safeAiError,
   testProviderGenerate,
 } from './lib/aiInsightService.js';
+import { requireDebugSecret } from './lib/debugAuth.js';
 
 const buildProviderResult = async ({ provider, hasApiKey }) => {
   const baseResult = {
@@ -45,6 +46,8 @@ export default async function handler(req, res) {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ success: false, error: 'Method not allowed.' });
   }
+
+  if (!requireDebugSecret(req, res)) return;
 
   const basePayload = getAiDebugBasePayload();
   const [gemini, groq] = await Promise.all([
