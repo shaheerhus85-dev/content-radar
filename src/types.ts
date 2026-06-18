@@ -15,6 +15,8 @@ export type SourceDiscoveryMethod =
   | 'sitemap'
   | 'fallback';
 
+export type SourceRefreshStatus = 'success' | 'fallback' | 'failed';
+
 export type InsightTopic =
   | 'AI'
   | 'SEO'
@@ -56,6 +58,11 @@ export interface Source {
   createdAt?: string | null;
   updatedAt?: string | null;
   lastFetchedAt?: string | null;
+  lastRefreshStatus?: SourceRefreshStatus | null;
+  lastRefreshMessage?: string | null;
+  lastCheckedAt?: string | null;
+  lastSuccessAt?: string | null;
+  lastFailureAt?: string | null;
   status: 'active' | 'failed';
 }
 
@@ -63,6 +70,7 @@ export interface ContentItem {
   id: string;
   sourceId: string;
   sourceName: string;
+  sourceType?: SourceType;
   title: string;
   url: string;
   publishedAt?: string;

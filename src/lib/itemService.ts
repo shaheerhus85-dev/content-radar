@@ -20,6 +20,7 @@ import { db } from './firebase';
 interface ItemDocument {
   sourceId?: string;
   sourceName?: string;
+  sourceType?: ContentItem['sourceType'];
   title?: string;
   url?: string;
   publishedAt?: string | null;
@@ -88,6 +89,7 @@ export const subscribeToUserItems = (
           id: itemDoc.id,
           sourceId: data.sourceId || '',
           sourceName: data.sourceName || 'Content Radar Source',
+          sourceType: data.sourceType,
           title: data.title || 'Untitled update',
           url: data.url || '#',
           publishedAt: formatPublishedAt(data.publishedAt),

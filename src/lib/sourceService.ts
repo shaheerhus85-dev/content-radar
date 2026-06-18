@@ -13,6 +13,7 @@ import {
   Source,
   type SourceDiscoveryMethod,
   type SourcePurpose,
+  type SourceRefreshStatus,
   type SourceType,
 } from '../types';
 import { db } from './firebase';
@@ -34,6 +35,11 @@ interface SourceDocument {
   createdAt?: Timestamp | null;
   updatedAt?: Timestamp | null;
   lastFetchedAt?: Timestamp | null;
+  lastRefreshStatus?: SourceRefreshStatus | null;
+  lastRefreshMessage?: string | null;
+  lastCheckedAt?: Timestamp | null;
+  lastSuccessAt?: Timestamp | null;
+  lastFailureAt?: Timestamp | null;
 }
 
 export interface SourceInput {
@@ -98,6 +104,11 @@ export const subscribeToUserSources = (
           createdAt: formatTimestamp(data.createdAt),
           updatedAt: formatTimestamp(data.updatedAt),
           lastFetchedAt: formatTimestamp(data.lastFetchedAt),
+          lastRefreshStatus: data.lastRefreshStatus || null,
+          lastRefreshMessage: data.lastRefreshMessage || null,
+          lastCheckedAt: formatTimestamp(data.lastCheckedAt),
+          lastSuccessAt: formatTimestamp(data.lastSuccessAt),
+          lastFailureAt: formatTimestamp(data.lastFailureAt),
         };
       });
 
@@ -119,6 +130,11 @@ export const addUserSource = async (uid: string, sourceInput: SourceInput) => {
     includePatterns: sourceInput.includePatterns || [],
     excludePatterns: sourceInput.excludePatterns || [],
     status: 'active',
+    lastRefreshStatus: null,
+    lastRefreshMessage: null,
+    lastCheckedAt: null,
+    lastSuccessAt: null,
+    lastFailureAt: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     lastFetchedAt: null,

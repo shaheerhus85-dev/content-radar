@@ -91,6 +91,7 @@ export default function App() {
   const [privateItemsLoading, setPrivateItemsLoading] = useState(false);
   const [privateItemsError, setPrivateItemsError] = useState('');
   const [refreshError, setRefreshError] = useState('');
+  const [refreshResultMessage, setRefreshResultMessage] = useState('');
   const [aiAnalysisMessage, setAiAnalysisMessage] = useState('');
   const [aiAnalysisError, setAiAnalysisError] = useState('');
   const [isAnalyzingExisting, setIsAnalyzingExisting] = useState(false);
@@ -379,6 +380,7 @@ export default function App() {
       setIsScanning(true);
       setScanProgress(0.15);
       setRefreshError('');
+      setRefreshResultMessage('');
       setPrivateLogs((prev) => [
         'Requesting authenticated source refresh...',
         ...prev,
@@ -407,6 +409,14 @@ export default function App() {
           aiSkipped?: number;
           aiFailed?: number;
           aiQuotaLimited?: number;
+          fallbackItemsSaved?: number;
+          sourceResults?: {
+            sourceId: string;
+            sourceName: string;
+            status: 'success' | 'fallback' | 'failed';
+            itemsSaved: number;
+            reason: string;
+          }[];
           failedSources?: { sourceName: string; error: string }[];
         };
 
@@ -415,11 +425,20 @@ export default function App() {
         }
 
         setScanProgress(1);
+        const fallbackSources = result.sourceResults?.filter((source) => source.status === 'fallback') || [];
+        const failedSources = result.sourceResults?.filter((source) => source.status === 'failed') || result.failedSources || [];
+        const fallbackItemsSaved = result.fallbackItemsSaved ?? 0;
+        setRefreshResultMessage(
+          `Refresh checked ${result.sourcesChecked ?? 0} sources, saved ${result.newItems ?? 0} items, saved ${fallbackItemsSaved} webpage fallback items, and found ${failedSources.length} sources needing attention.`,
+        );
         setPrivateLogs((prev) => [
           `Refresh complete. Checked ${result.sourcesChecked ?? 0} sources, added ${result.newItems ?? 0} new items, skipped ${result.skippedDuplicates ?? 0} duplicates.`,
           `AI insights: ${result.aiSummarized ?? 0} summarized, ${result.aiSkipped ?? 0} parsed only, ${result.aiFailed ?? 0} failed, ${result.aiQuotaLimited ?? 0} queued.`,
-          ...(result.failedSources?.length
-            ? [`${result.failedSources.length} sources failed and were skipped.`]
+          ...(fallbackSources.length
+            ? [`${fallbackSources.length} source${fallbackSources.length === 1 ? '' : 's'} could not provide feed items. A webpage fallback was saved.`]
+            : []),
+          ...(failedSources.length
+            ? [`${failedSources.length} source${failedSources.length === 1 ? '' : 's'} need attention. No accessible feed or page metadata found.`]
             : []),
           ...prev,
         ]);
@@ -662,6 +681,7 @@ export default function App() {
       setPrivateLogs([]);
       setPrivateItemsError('');
       setRefreshError('');
+      setRefreshResultMessage('');
       setAiAnalysisMessage('');
       setAiAnalysisError('');
       setSampleWorkspaceMessage('');
@@ -995,10 +1015,13 @@ export default function App() {
                     recentLogs={executionLogs}
                   />
 
-                  {isPrivateWorkspace && (refreshError || privateItemsError || privateItemsLoading) && (
+                  {isPrivateWorkspace && (refreshError || refreshResultMessage || privateItemsError || privateItemsLoading) && (
                     <div className="bg-theme-surface border border-theme-border rounded-xl p-4 shadow-sm text-left">
                       {privateItemsLoading && (
                         <p className="text-xs font-semibold text-theme-text-secondary">Loading saved insights...</p>
+                      )}
+                      {refreshResultMessage && (
+                        <p className="text-xs font-semibold text-[#12B76A]">{refreshResultMessage}</p>
                       )}
                       {refreshError && (
                         <p className="text-xs font-semibold text-rose-500">{refreshError}</p>

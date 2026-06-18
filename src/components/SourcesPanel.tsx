@@ -61,6 +61,33 @@ const getSourceTypeLabel = (type: SourceType) => {
   return 'Feed stream';
 };
 
+const getRefreshStatusMeta = (source: Source) => {
+  if (source.lastRefreshStatus === 'fallback') {
+    return {
+      label: 'Fallback',
+      message: source.lastRefreshMessage || 'Feed items were unavailable, so a webpage fallback was saved.',
+      className: 'text-[#F59E0B]',
+      dotClassName: 'bg-[#F59E0B]',
+    };
+  }
+
+  if (source.lastRefreshStatus === 'failed' || source.status === 'failed') {
+    return {
+      label: 'Needs attention',
+      message: source.lastRefreshMessage || 'No accessible feed or page metadata found. Try another URL or source.',
+      className: 'text-rose-500',
+      dotClassName: 'bg-rose-500',
+    };
+  }
+
+  return {
+    label: 'Active',
+    message: source.lastRefreshMessage || '',
+    className: 'text-[#12B76A]',
+    dotClassName: 'bg-[#12B76A]',
+  };
+};
+
 const getDefaultSourceName = (url: string, purpose: SourcePurpose) => {
   try {
     const hostname = new URL(url).hostname.replace(/^www\./, '');
@@ -223,7 +250,7 @@ export default function SourcesPanel({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-bold text-theme-text-primary">
-              {candidate.label || getCandidateTypeLabel(candidate.type)}
+              {getCandidateTypeLabel(candidate.type)}
             </span>
             {isRecommended && (
               <span className="inline-flex items-center gap-1 rounded-full bg-[#12B76A]/10 px-2 py-0.5 text-[10px] font-bold text-[#12B76A] border border-[#12B76A]/15">
@@ -348,7 +375,7 @@ export default function SourcesPanel({
                 <div>
                   <h3 className="text-sm font-bold text-theme-text-primary">Recommended Source</h3>
                   <p className="text-xs text-theme-text-secondary mt-1">
-                    Review the best match and confirm when you are ready to start monitoring.
+                    Review the best match and confirm when you are ready to start monitoring. Content Radar may use a feed, sitemap fallback, or page watch fallback.
                   </p>
                 </div>
                 <button
@@ -488,6 +515,7 @@ export default function SourcesPanel({
               </tr>
             ) : sources.map((src) => {
               const savedItemCount = sourceItemCounts[src.id] ?? sourceItemCounts[src.name] ?? 0;
+              const refreshStatus = getRefreshStatusMeta(src);
 
               return (
                 <tr
@@ -523,9 +551,16 @@ export default function SourcesPanel({
                   </td>
 
                   <td className="px-5 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#12B76A]">
-                      <span className="w-2 h-2 rounded-full bg-[#12B76A]" /> Active
-                    </span>
+                    <div className="max-w-[210px]">
+                      <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold ${refreshStatus.className}`}>
+                        <span className={`w-2 h-2 rounded-full ${refreshStatus.dotClassName}`} /> {refreshStatus.label}
+                      </span>
+                      {refreshStatus.message && (
+                        <span className="block text-[10px] text-theme-text-secondary mt-1 leading-snug whitespace-normal">
+                          {refreshStatus.message}
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   <td className="px-5 py-4 whitespace-nowrap text-theme-text-primary font-mono font-bold">
@@ -533,7 +568,7 @@ export default function SourcesPanel({
                   </td>
 
                   <td className="px-5 py-4 whitespace-nowrap text-theme-text-secondary font-medium">
-                    {src.lastFetchedAt || (workspaceMode === 'private' ? 'Not fetched yet' : '12 mins ago')}
+                    {src.lastCheckedAt || src.lastFetchedAt || (workspaceMode === 'private' ? 'Not fetched yet' : '12 mins ago')}
                   </td>
 
                   <td className="px-5 py-4 text-right whitespace-nowrap">
