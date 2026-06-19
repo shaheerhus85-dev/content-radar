@@ -1,101 +1,140 @@
-# Content Radar - AI Source Monitoring & Insight Automation
+# Content Radar
 
-A recruiter-facing AI automation dashboard that turns public website updates into structured, decision-ready insights.
+AI-assisted source monitoring and insight automation dashboard.
 
-Live demo: https://content-radar-teal.vercel.app  
-GitHub repo: https://github.com/shaheerhus85-dev/content-radar
+Content Radar helps track public website updates, discover available feed or sitemap sources, store new content items, and convert them into structured insights for review.
 
-## Why This Project Exists
+Live: https://content-radar-teal.vercel.app
 
-Teams often monitor too many public sources manually. Product updates, competitor announcements, changelogs, research posts, and marketing signals are scattered across blogs, feeds, sitemaps, and ordinary websites.
+## Overview
 
-Manual checking wastes time, and important signals can be missed. Content Radar demonstrates an automated workflow for discovering sources, refreshing them, saving parsed updates, and analyzing those updates into practical insight fields.
+Content Radar is a web dashboard for monitoring public sources such as blogs, changelogs, product update pages, news sections, and ordinary websites.
 
-This is not a full SaaS company and it is not fake user data presented as real usage. It is a practical proof-of-work project showing source discovery, refresh workflows, private workspaces, AI insight generation, provider fallback, and safe failure handling.
+Instead of manually checking scattered sources, users can add a website URL and let the system discover the best available monitoring method. The app supports RSS, Atom, sitemap discovery, and page-watch fallback when structured feeds are not available.
 
-## What The App Does
+The system stores discovered updates in a private workspace and can generate structured insight fields such as summary, topic, signal type, relevance, why it matters, and suggested action.
 
-1. A user enters a public website URL.
-2. Content Radar discovers the best available monitoring option: RSS, Atom, sitemap, or page-watch fallback.
-3. The source is saved into the user's private Firebase workspace.
-4. `Refresh Sources` checks the source for updates.
-5. Parsed content items are saved to Firestore.
-6. AI analysis creates a summary, topic, signal type, why-it-matters note, and action proposal.
-7. Provider fallback uses Gemini, Groq, or a cached insight depending on availability.
-8. If a website is inaccessible, the app shows a friendly `Needs attention` state instead of raw technical errors.
+## Core Workflow
 
-## Recruiter Demo Flow
+1. Add a public website URL.
+2. Select a monitoring purpose.
+3. Let Smart Source Discovery find the best source option.
+4. Save the source to a private workspace.
+5. Refresh sources to collect updates.
+6. Analyze saved items into structured insights.
+7. Review insights in the dashboard and open the original source when needed.
 
-1. Open the live demo: https://content-radar-teal.vercel.app
-2. Sign up for a private workspace or open the public dashboard preview.
-3. Add a source URL such as a company homepage, blog, changelog, or product updates page.
-4. Choose a monitoring purpose: competitor monitoring, product updates, SEO, research, or custom.
-5. Use the recommended source from Smart Source Discovery.
-6. Click `Refresh Sources`.
-7. Click `Analyze 1 Item`.
-8. Open an insight modal.
-9. Review `AI Summary`, `Why It Matters`, `Action Proposal`, and `Source Information`.
-10. Open the original source link to verify the update.
+## Features
 
-## Key Features
-
-- Smart Source Discovery from normal website URLs
+- Smart source discovery from normal website URLs
 - RSS, Atom, sitemap, and page-watch fallback support
-- Private Firebase Auth workspace
+- Private user workspaces with Firebase Auth
 - Firestore-backed source and item persistence
-- Sample workspace onboarding for empty recruiter accounts
-- Real and Sample insight filters
-- Refresh result banner with saved item and fallback counts
-- Source health states: `Active`, `Fallback`, `Needs attention`, and `Not checked yet`
-- Gemini primary AI provider
-- Groq fallback provider
-- URL-based cached insight layer
-- Quota-safe AI states such as `AI queued` and `Parsed only`
-- Friendly failure handling with no raw HTTP/provider errors in normal UI
-- Debug endpoints protected by `DEBUG_SECRET`
+- Refresh pipeline for collecting new content updates
+- AI-assisted insight generation
+- Provider fallback and cached insight reuse
+- Source health states for active, fallback, and inaccessible sources
+- Real and sample insight filtering
+- Friendly failure handling for inaccessible websites
+- Responsive dashboard interface with light and dark mode support
+
+## Source Discovery
+
+Content Radar attempts to identify the most useful monitoring source for a website.
+
+Supported discovery paths include:
+
+- RSS feeds
+- Atom feeds
+- Sitemap URLs
+- Sitemap indexes
+- Common blog, news, and changelog feed paths
+- Page-watch fallback for websites without structured feeds
+
+If a site cannot be reached or does not expose usable metadata, the app marks the source as needing attention instead of showing raw technical errors.
+
+## AI Insight Generation
+
+Saved content items can be analyzed into structured insight fields:
+
+- Summary
+- Topic
+- Signal type
+- Relevance score
+- Why it matters
+- Action proposal
+- Source information
+
+The app supports AI provider fallback and insight caching to reduce repeated analysis for the same public URL.
 
 ## Tech Stack
 
-Frontend:
+### Frontend
 
-- Vite
 - React
 - TypeScript
+- Vite
 - Tailwind CSS
 
-Backend/API:
+### Backend and Data
 
 - Vercel Serverless Functions
-- Firebase Auth
-- Firestore
+- Firebase Authentication
+- Cloud Firestore
 - Firebase Admin SDK
 
-AI:
+### AI Layer
 
 - Gemini API
 - Groq API
 - Cached insight layer
 
-## Architecture Overview
+## Architecture
 
 ```text
 Website URL
--> Smart discovery
--> Source saved
--> Refresh pipeline
--> Feed/sitemap/page-watch parsing
--> Firestore items
--> AI insight generation
--> Dashboard + modal review
+  -> Smart Source Discovery
+  -> Source saved to workspace
+  -> Refresh pipeline
+  -> Feed / sitemap / page-watch parsing
+  -> Firestore content items
+  -> AI insight generation
+  -> Dashboard review
 ```
 
-Private user data is stored under `users/{uid}`. Sources live under `users/{uid}/sources/{sourceId}` and items live under `users/{uid}/items/{itemId}`. Cached public URL insights live separately under `aiInsightCache/{urlHash}` and do not store user IDs or private workspace context.
+User workspace data is stored under user-scoped Firestore paths. Public URL insight caching is stored separately and does not include private workspace context.
+
+## Local Development
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+Run type checking:
+
+```bash
+npm run lint
+```
+
+Build for production:
+
+```bash
+npm run build
+```
 
 ## Environment Variables
 
-Use placeholders only in documentation and examples. Do not commit real values.
+Create a local environment file for development when needed.
 
-Client:
+Client-side Firebase configuration:
 
 ```env
 VITE_FIREBASE_API_KEY=
@@ -107,7 +146,7 @@ VITE_FIREBASE_APP_ID=
 VITE_FIREBASE_MEASUREMENT_ID=
 ```
 
-Server:
+Server-side configuration:
 
 ```env
 FIREBASE_SERVICE_ACCOUNT_BASE64=
@@ -119,77 +158,36 @@ AI_PROVIDER_ORDER=
 DEBUG_SECRET=
 ```
 
-Notes:
+Only placeholder names should be committed. Real environment values must stay in local or hosting environment settings.
 
-- `VITE_*` Firebase values are browser client configuration.
-- Firebase Admin service account base64 is server-only.
-- Gemini and Groq keys are server-only.
-- `DEBUG_SECRET` protects diagnostic endpoints.
-- Never commit `.env.local`, `.env.vercel.local`, Firebase service account JSON, private keys, or local secret files.
+## Security
 
-## Local Setup
+- Real environment files are not committed.
+- Server-side API keys are used only in serverless functions.
+- Firebase Admin credentials are server-only.
+- User data is stored in private workspace paths.
+- Diagnostic endpoints are protected.
+- Sample data is labeled separately from user-created data.
 
-Install dependencies:
+## Practical Notes
 
-```bash
-npm install
-```
+Some websites block automated requests or do not expose RSS, Atom, sitemap, or usable page metadata. In those cases, Content Radar shows a clear source status instead of failing silently.
 
-Start the local frontend:
+AI analysis can depend on provider availability and quota. Parsed content remains saved and can be analyzed later when AI processing is available.
 
-```bash
-npm run dev
-```
+## Engineering Highlights
 
-Build for production:
-
-```bash
-npm run build
-```
-
-Run type checking:
-
-```bash
-npm run lint
-```
-
-Local AI and Firebase server functionality requires the appropriate environment variables. Do not commit `.env.local` or `.env.vercel.local`.
-
-## Security Notes
-
-- Real secrets are not committed.
-- `.env.example` contains placeholders only.
-- Debug endpoints are protected by `DEBUG_SECRET`.
-- Private workspaces are user-specific.
-- Sample data is clearly labeled as `Sample workspace data`.
-- Firebase Admin runs server-side only.
-- Service account JSON files must stay outside the repository.
-
-## Limitations
-
-- Some websites block automated fetching.
-- Some pages do not expose RSS feeds or sitemaps.
-- Content Radar handles this with page-watch fallback or a friendly `Needs attention` state.
-- AI providers can hit quota.
-- If AI is unavailable, the app keeps parsed content and allows later analysis.
-- This is a proof-of-work dashboard, not a production SaaS billing platform.
-
-## Proof-Of-Work Value
-
-Content Radar demonstrates:
-
-- Product thinking around noisy monitoring workflows
-- Practical workflow automation
-- Backend API design with Vercel serverless functions
-- Firebase Auth and Firestore usage
-- User-private workspace boundaries
-- AI provider fallback and cache-aware analysis
-- Reliable failure states for recruiter testing
-- A recruiter-ready UI that separates sample data from real user data
+- Source discovery from ordinary URLs
+- Feed, sitemap, and fallback parsing flow
+- Authenticated private workspace model
+- Serverless refresh pipeline
+- Firestore persistence
+- AI provider fallback
+- Insight caching by public URL
+- Friendly source health states
+- Clean dashboard review experience
 
 ## Author
 
 Shaheer Hussain Jafri  
 AI Systems Builder & Automation-focused Developer
-
-Built as a practical proof-of-work system for AI-assisted automation, source monitoring, and insight workflows.
