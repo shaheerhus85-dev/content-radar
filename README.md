@@ -1,6 +1,6 @@
 # Content Radar
 
-AI-assisted source monitoring and insight automation dashboard.
+Monitor public web sources and turn updates into structured, AI-assisted insights.
 
 Content Radar helps track public website updates, discover available feed or sitemap sources, store new content items, and convert them into structured insights for review.
 
@@ -8,11 +8,18 @@ Live: https://content-radar-teal.vercel.app
 
 ## Overview
 
-Content Radar is a web dashboard for monitoring public sources such as blogs, changelogs, product update pages, news sections, and ordinary websites.
+Content Radar is a web dashboard for monitoring public sources such as blogs, changelogs, product update pages, news sections, and standard web pages.
 
 Instead of manually checking scattered sources, users can add a website URL and let the system discover the best available monitoring method. The app supports RSS, Atom, sitemap discovery, and page-watch fallback when structured feeds are not available.
 
 The system stores discovered updates in a private workspace and can generate structured insight fields such as summary, topic, signal type, relevance, why it matters, and suggested action.
+
+## Use Cases
+
+- Product and changelog monitoring
+- Competitor update tracking
+- Content and research monitoring
+- Marketing and SEO source tracking
 
 ## Core Workflow
 
@@ -134,6 +141,8 @@ npm run build
 
 Create a local environment file for development when needed.
 
+See `.env.example` for the complete placeholder configuration.
+
 Client-side Firebase configuration:
 
 ```env
@@ -169,11 +178,11 @@ Only placeholder names should be committed. Real environment values must stay in
 - Diagnostic endpoints are protected.
 - Sample data is labeled separately from user-created data.
 
-## Practical Notes
+## Reliability Notes
 
 Some websites block automated requests or do not expose RSS, Atom, sitemap, or usable page metadata. In those cases, Content Radar shows a clear source status instead of failing silently.
 
-AI analysis can depend on provider availability and quota. Parsed content remains saved and can be analyzed later when AI processing is available.
+When AI processing is temporarily unavailable, parsed content remains saved and can be analyzed later.
 
 ## Engineering Highlights
 
