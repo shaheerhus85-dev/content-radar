@@ -7,3 +7,7 @@ coverage/
 .env*
 !.env.example
 .vercel
+*.local
+secrets/
+firebase-base64.txt
+*service-account*.json
